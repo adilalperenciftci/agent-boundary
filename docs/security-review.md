@@ -48,6 +48,12 @@ The same numeric-connect signal is exercised negatively and positively: undeclar
 and 18081 produce `RPF-EGRESS-001`, while policy-declared port 18082 remains finding-free in the
 benign baseline. This validates exact endpoint semantics only, not domain, proxy, or IPv6 handling.
 
+The kernel baseline now feeds permanent stream-integrity regressions. Interior deletion and
+byte modification are rejected by sequence/hash validation. Tail truncation is structurally a
+valid hash-chain prefix, so the lifecycle invariant—not the chain—forces `unknown` completeness
+and strict `REJECT`. A signed external checkpoint remains necessary to detect rollback to another
+complete historical stream.
+
 ## Exploit-to-telemetry correlation
 
 For MBE-001, the non-exploit chain is: fixture shell input → successful `openat` → kernel

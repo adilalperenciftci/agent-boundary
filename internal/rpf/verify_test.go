@@ -127,6 +127,26 @@ func TestMissingCorrelationLossCounterCannotAllow(t *testing.T) {
 	}
 }
 
+func TestMissingFinalLifecycleCannotAllow(t *testing.T) {
+	inputs := fixtureInputs(t, func(events *[]Event) {
+		*events = (*events)[:len(*events)-1]
+	})
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := Verify(inputs, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Decision != "REJECT" || decision.Completeness != "unknown" {
+		t.Fatalf("tail-truncated lifecycle was accepted: %#v", decision)
+	}
+	if len(decision.Reasons) != 1 || decision.Reasons[0].Code != "RPF-EVIDENCE-001" {
+		t.Fatalf("tail truncation lacked explicit evidence reason: %#v", decision)
+	}
+}
+
 func TestProvenanceInternalAndExternalRevisionConflictFails(t *testing.T) {
 	inputs := fixtureInputs(t, nil)
 	statement, err := decodeStatement(inputs.ProvenanceBytes)

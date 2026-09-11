@@ -45,6 +45,13 @@ versioned policy. Its exec and connect edges must be present while the final dec
 `ALLOW` with no reasons. This is a controlled non-detection case proving that the network hook
 does not make every observed connection suspicious.
 
+`tools/test-evidence-integrity.sh` derives three negative fixtures from that real sensor stream.
+Tail truncation retains a valid hash-chain prefix, but the absent `sensor_finalized` lifecycle event
+must yield `completeness=unknown`, `RPF-EVIDENCE-001`, and `REJECT`. Removing an interior event or
+changing a retained byte must fail event parsing because sequence/hash commitments no longer
+verify. These tests demonstrate fail-closed handling; they do not make an unsigned stream
+authentic or detect rollback to a separately checkpointed older complete stream.
+
 The same script runs EXP-001 twice with byte-identical authorization claims: explicitly vulnerable
 mode must grant the synthetic marker and patched mode must deny it. Both proof processes and
 loopback attempts must appear in telemetry. This is a complete local exploit/patch path, while the

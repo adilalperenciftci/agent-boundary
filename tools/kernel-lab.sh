@@ -15,4 +15,5 @@ docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-mock-
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-authz-target ./cmd/rpf-authz-target
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-authz-proof ./cmd/rpf-authz-proof
 docker run --rm --privileged -v "$root:/src" -w /src "$image" ./tools/test-sensor.sh
+docker run --rm -v "$root:/src" -w /src "$image" ./tools/test-evidence-integrity.sh
 docker run --rm --privileged -v "$root:/src" -w /src "$image" ./tools/test-adversarial.sh
