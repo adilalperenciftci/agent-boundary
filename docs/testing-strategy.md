@@ -82,3 +82,7 @@ Native Go fuzz targets cover canonical event streams, policy documents, and in-t
 Statement parsing. Ordinary `go test` executes their checked-in seeds; a read-only weekly/manual
 workflow runs each target for 30 seconds. This is bounded parser robustness coverage, not evidence
 that all parser defects are absent. Privileged BPF behavior is not fuzzed by these userspace tests.
+
+The SBOM generator runs the digest-pinned Syft container against a read-only source mount and then
+validates SPDX 2.3 and CycloneDX 1.7 format markers. Unit tests reject version-confused documents.
+This validates format/profile expectations, not completeness of every language cataloger.
