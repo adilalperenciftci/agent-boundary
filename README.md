@@ -16,7 +16,7 @@ cicd-sensor.
 
 ## Current state
 
-The repository contains a tested, platform-independent first vertical slice:
+The repository contains a tested correlation-first vertical slice and a Linux M2 exec sensor:
 
 ```text
 synthetic canonical runtime events
@@ -29,9 +29,11 @@ synthetic canonical runtime events
         -> ALLOW / REVIEW / REJECT
 ```
 
-This slice uses synthetic events and has assurance level `fixture`. It does **not** yet collect
-kernel telemetry or verify Sigstore signatures. `verify-fixture` is named to prevent unsigned
-fixture verification from being confused with the later strict signed verifier.
+The correlation slice uses synthetic events and has assurance level `fixture`. The M2 sensor
+separately proves cgroup-filtered `sched_process_exec` collection and explicit ring-buffer loss
+accounting on Linux. Sensor output is not yet admitted as signed build evidence, and Sigstore
+verification is not implemented. `verify-fixture` is named to prevent unsigned fixture
+verification from being confused with the later strict signed verifier.
 
 Implemented invariants include:
 
@@ -67,11 +69,16 @@ reloads it through strict parsers, recomputes every binding, and requires `ALLOW
 tests alter the artifact and manifest, inject event loss, and emulate forbidden sensitive-file
 access and localhost egress; those paths must reject.
 
+The privileged sensor smoke test requires Linux with cgroup v2, BTF, tracefs, and BPF loading
+privilege. Build the CO-RE object and Linux CLI, then run `tools/test-sensor.sh`; the test requires
+two expected exec records and a finalized zero-loss record. See
+[kernel support](docs/kernel-support.md) for exact limits.
+
 ## Intended architecture
 
-The selected target is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto
+The selected architecture is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto
 Runtime Trace plus SLSA provenance, standard Sigstore bundles, and a portable fail-closed
-verifier. The sensor will filter by cgroup and emit only semantically useful execution,
+verifier. The first sensor program filters exec by cgroup; later programs will add only justified
 sensitive-file, output-file, network, privilege, lifecycle, and loss events.
 
 The build cgroup is treated as adversarial. The monitor must start outside it. A root-equivalent
@@ -92,7 +99,8 @@ reconciling missing data. See the [gap analysis](docs/research/runtime-attestati
 
 ## Limits
 
-- No kernel sensor has been implemented or validated yet.
+- Kernel validation currently covers exec only, on one Linux 6.8 WSL2 Docker host; it is not a
+  portability claim and is not yet connected to the evidence collector.
 - No signature or transparency-log verification is implemented yet.
 - Runtime Trace v0.1 is experimental and monitor event fields are not standardized.
 - Async eBPF cannot prove atomic file-content identity at access time.

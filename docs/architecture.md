@@ -26,24 +26,26 @@ SLSA provenance <------ evidence manifest ------> Runtime Trace v0.1
                     ALLOW / REVIEW / REJECT
 ```
 
-Solid implementation currently begins at canonical synthetic events and ends at an unsigned
-fixture verdict. Kernel collection and Sigstore verification are target components, not
-current capabilities.
+Solid implementation currently includes the fixture correlation path plus a separately tested
+cgroup-filtered exec sensor. Converting raw sensor records into canonical build evidence and
+Sigstore verification remain target components.
 
 ## Components
 
-### Kernel sensor (planned)
+### Kernel sensor (M2 exec slice implemented)
 
-Small BPF C CO-RE programs attach to stable tracepoints, cgroup hooks, and BPF LSM hooks where
-their semantics justify deployment cost. Kernel filtering limits events to a registered build
-cgroup and policy-selected paths/output roots. Ring-buffer reservation failure increments a
-per-build or conservatively attributable loss counter.
+The first BPF C CO-RE program attaches to `sched_process_exec`, compares
+`bpf_get_current_cgroup_id()` with one loader-supplied cgroup ID, and emits bounded identity and
+filename records through a BPF ring buffer. Reservation failure increments a per-CPU counter;
+userspace sums and emits it during finalization. This slice deliberately does not claim file,
+network, namespace, process-start-time, or build-nonce attribution yet.
 
-### Go collector (planned)
+### Go sensor loader (M2 implemented; canonical collector planned)
 
-The collector loads CO-RE objects using `cilium/ebpf`, registers a build nonce/cgroup scope,
-normalizes fixed kernel records, writes a single-writer append-only stream, and finalizes loss
-counters. Loading privilege is separated from parsing/graphing where practical.
+`cmd/rpf-sensor` loads the CO-RE object using `cilium/ebpf`, rewrites the target cgroup constant,
+attaches the tracepoint, defensively decodes fixed-size records, and emits JSON lines plus the
+final loss count. It is a diagnostic boundary, not the canonical evidence collector. Build nonce
+registration, composite identities, append-only persistence, and privilege separation remain.
 
 ### Evidence and graph core (implemented for fixtures)
 
@@ -96,7 +98,9 @@ decisions.
 
 ## Privilege and host trust
 
-The future sensor needs BPF-related capabilities and possibly BPF LSM support. After loading,
+The sensor needs BPF/perfmon-style privileges appropriate to the host configuration; the tested
+lab uses a privileged disposable container. Future BPF LSM programs may need additional host
+configuration. After loading,
 capabilities should be reduced; evidence output and policy should be read-only to the build.
 Seccomp, Landlock, map freezing, and split loader/collector processes will be evaluated against
 actual required syscalls. None of these controls defeats hostile root.
