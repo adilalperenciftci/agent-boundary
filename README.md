@@ -16,7 +16,7 @@ cicd-sensor.
 
 ## Current state
 
-The repository contains a tested correlation-first vertical slice and a Linux M2 exec sensor:
+The repository contains a tested correlation-first vertical slice and a narrow Linux CO-RE sensor:
 
 ```text
 synthetic canonical runtime events
@@ -29,14 +29,14 @@ synthetic canonical runtime events
         -> ALLOW / REVIEW / REJECT
 ```
 
-The correlation slice uses synthetic events and has assurance level `fixture`. The M2/M3 Linux
-path proves cgroup-filtered `sched_process_exec` collection, composite process identity,
-canonical hash chaining, exclusive evidence creation, strict replay, and explicit ring-buffer
-and kernel-correlation loss accounting. The M6 lab additionally binds an exact-path successful
-write-open observation to the final artifact hash. Sensor evidence is not yet assembled with
-real SLSA provenance or signed, and Sigstore verification is not implemented. `verify-fixture`
-is named to prevent unsigned fixture
-verification from being confused with the later strict signed verifier.
+The correlation slice uses repository-owned fixtures. The Linux path collects cgroup-filtered
+successful exec, selected `openat`, and IPv4 connect-attempt events; records composite process
+identity, canonical hash chains, and explicit loss state; and binds an observed exact-path
+artifact write-open to the final artifact hash. The lab assembles that evidence with a SLSA
+Provenance v1 Statement and signs both provenance and Runtime Trace bytes with Cosign bundles.
+An offline script verifies both signatures before invoking semantic verification. `verify-fixture`
+is deliberately named because its semantic verifier does not itself establish signer identity or
+transparency inclusion.
 
 Implemented invariants include:
 
@@ -101,12 +101,13 @@ A separate benign mock endpoint at `127.0.0.1:18082` is explicitly policy-declar
 event and graph edge remain present, but verification returns `ALLOW`, providing a controlled
 expected-network non-detection case.
 
-## Intended architecture
+## Implemented research architecture
 
 The selected architecture is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto
 Runtime Trace plus SLSA provenance, standard Sigstore bundles, and a portable fail-closed
-verifier. The first sensor program filters exec by cgroup; later programs will add only justified
-sensitive-file, output-file, network, privilege, lifecycle, and loss events.
+verifier. Current kernel signals cover successful exec, policy-selected sensitive and artifact
+write-open activity, and numeric IPv4 connection attempts. Privilege transitions, IPv6, DNS
+origin, `openat2`, rename publication, and descendant-cgroup attribution remain outside this slice.
 
 The build cgroup is treated as adversarial. The monitor must start outside it. A root-equivalent
 host attacker that can disable kernel telemetry and reach signing authority is explicitly not
@@ -128,7 +129,8 @@ reconciling missing data. See the [gap analysis](docs/research/runtime-attestati
 
 - Kernel validation currently covers exec and successful write-intent `openat` on one Linux 6.8
   WSL2 Docker host; it is not a portability claim.
-- No signature or transparency-log verification is implemented yet.
+- Offline Cosign bundle verification with a synthetic key is implemented; keyless workload
+  identity and transparency-log verification are not.
 - Runtime Trace v0.1 is experimental and monitor event fields are not standardized.
 - Async eBPF cannot prove atomic file-content identity at access time.
 - Process/file observations establish documented edges, not semantic causation.

@@ -26,20 +26,22 @@ SLSA provenance <------ evidence manifest ------> Runtime Trace v0.1
                     ALLOW / REVIEW / REJECT
 ```
 
-Solid implementation currently includes the fixture correlation path plus a tested
-cgroup-filtered exec/write-open sensor and canonical single-writer collector. Exact-path artifact
-finalization is implemented; provenance assembly from this privileged path and Sigstore
-verification remain target components.
+The implemented local path includes cgroup-filtered exec, selected write-open, sensitive-open,
+and IPv4 connect-attempt collection; a canonical single-writer collector; exact-path artifact
+finalization; SLSA Provenance v1 correlation; and offline Cosign bundle verification. Hosted CI
+identity, keyless signing, and transparency verification remain target components.
 
 ## Components
 
-### Kernel sensor (M2 exec slice implemented)
+### Kernel sensor (narrow vertical slice implemented)
 
-The first BPF C CO-RE program attaches to `sched_process_exec`, compares
-`bpf_get_current_cgroup_id()` with one loader-supplied cgroup ID, and emits bounded identity and
-filename records through a BPF ring buffer. Reservation failure increments a per-CPU counter;
-userspace sums and emits it during finalization. This slice deliberately does not claim file,
-network, namespace, process-start-time, or build-nonce attribution yet.
+The BPF C CO-RE program attaches to `sched_process_exec`, `sys_enter_openat`,
+`sys_exit_openat`, and `cgroup/connect4`. It scopes tracepoint observations by one
+loader-supplied cgroup ID and attaches connect observation directly to that cgroup. Bounded exec,
+selected file, and numeric IPv4 destination records use a BPF ring buffer. Reservation and
+open-entry/exit correlation failures increment explicit counters that userspace emits during
+finalization. This slice does not claim resolved-path, DNS, IPv6, privilege-transition, or
+descendant-cgroup attribution.
 
 ### Go sensor loader and collector (M2/M3 implemented)
 
@@ -64,11 +66,14 @@ the monitor and run; one namespaced extension commits to build/run/source identi
 manifest, graph, SLSA provenance, policy, and completeness. Detailed events remain external
 content-addressed evidence.
 
-### Signature verifier (planned)
+### Signature verification (offline fixture implemented; workload identity planned)
 
-Maintained Sigstore libraries will verify bundles, trust roots, certificate identity/issuer,
-transparency evidence, and signed statement bytes. The project will not implement cryptographic
-primitives or hard-code a Rekor shard.
+The disposable lab uses Cosign 3.1.2 to sign Runtime Trace and provenance bytes with an ephemeral
+synthetic key and verifies both bundles under the corresponding public key before semantic
+verification. Tampered bytes, malformed statements, and an unrelated key are rejected. This does
+not verify a hosted workload identity or transparency inclusion. A future keyless profile must
+verify Fulcio identity/issuer and current Sigstore transparency evidence without inventing
+cryptographic primitives or hard-coding a Rekor shard.
 
 ### Correlation and policy verifier (fixture slice implemented)
 
