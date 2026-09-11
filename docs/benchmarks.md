@@ -33,19 +33,19 @@ Measured values must not be promoted to README performance claims without the co
 results and environment metadata. Event-loss counters in functional tests establish zero observed
 loss for those runs only; they are not throughput measurements.
 
-## Recorded sanity sample
+## Recorded five-sample baseline
 
-On 2026-09-11, one non-comparative sanity sample was run with Go 1.27.1 in the pinned lab
+On 2026-09-11, five samples were run with Go 1.27.1 in the pinned lab
 container on Linux `6.18.33.2-microsoft-standard-WSL2`, amd64, Intel i5-11400H. The fixture was
-five events / 4,462 bytes. This single sample confirms the harness executes; it is not a stable
-performance baseline.
+five events / 4,462 bytes. The table reports median and observed minimum/maximum. The complete
+samples are retained in [the raw result](benchmark-results/2026-09-11-go-core.txt). This small,
+single-host sample is not a regression threshold or a representative build workload.
 
-| Operation | ns/op | bytes allocated/op | allocations/op |
-| --- | ---: | ---: | ---: |
-| parse event stream | 1,231,373 | 329,761 | 4,884 |
-| assemble bundle | 1,805,237 | 389,625 | 5,869 |
-| verify bundle | 3,521,905 | 807,724 | 12,103 |
+| Operation | median ns/op | observed ns/op range | median bytes/op | median allocations/op |
+| --- | ---: | ---: | ---: | ---: |
+| parse event stream | 690,626 | 682,521–823,525 | 329,565 | 4,883 |
+| assemble bundle | 884,598 | 874,298–913,588 | 396,163 | 5,948 |
+| verify bundle | 1,868,657 | 1,847,748–1,947,445 | 820,382 | 12,265 |
 
-The exact command was the reproduction command with `-count=1`. A future baseline must retain the
-five raw samples, characterize variance, and use larger representative streams before setting a
-regression threshold.
+Larger representative streams and repeated independent process runs are still required before
+setting a regression threshold. These numbers exclude kernel collection and Cosign.
