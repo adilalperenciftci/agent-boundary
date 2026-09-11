@@ -1,14 +1,23 @@
 # Release integrity
 
-No release artifacts are published yet. A future release workflow must build from a protected tag on a hosted ephemeral runner, generate a CycloneDX or SPDX SBOM, and attach identity-bound provenance. Consumers must verify repository identity, workflow identity, source revision, and artifact digest rather than checking only that an attestation exists.
+No release artifacts are published yet. The tag/manual `release-candidate.yml` workflow builds a
+Linux amd64 archive on a hosted ephemeral runner, includes source-tree CycloneDX and SPDX SBOMs,
+and creates GitHub/Sigstore-backed SLSA build provenance for the archive. It uploads short-lived
+workflow artifacts; it does not create a GitHub Release. Consumers must verify repository identity,
+workflow identity, source revision, and artifact digest rather than checking only that an
+attestation exists.
 
-The current CI builds distributions as a packaging check but does not claim a SLSA level. Publishing, keyless signing, and provenance generation require a separate workflow with narrowly scoped `id-token: write` and `contents: read` permissions. Pull-request workflows must not receive release credentials.
+The release-candidate job grants only `contents: read`, `id-token: write`, `attestations: write`,
+and `artifact-metadata: write`; pull-request workflows receive none of these write permissions.
+Every third-party action is pinned to a full commit. The workflow uses `actions/attest` rather than
+the legacy provenance wrapper. Until an authoritative hosted run is inspected, this repository
+does not claim that a release was signed or that any SLSA build level was achieved.
 
 CI now runs Go race tests/vet and Python tests/static analysis with read-only default permissions.
 Separate SHA-pinned CodeQL and OpenSSF Scorecard workflows grant `security-events: write` only to
 their analysis jobs; only Scorecard receives `id-token: write` for authenticated result
-publication. These workflows improve repository checks but do not constitute a release process,
-signed release, or SLSA provenance.
+publication. These workflows improve repository checks but do not themselves constitute a release
+process, signed release, or SLSA provenance.
 
 `tools/generate-sbom.sh` scans a read-only source mount with Syft v1.51.1 pinned by OCI manifest
 digest, excludes generated/VCS/virtual-environment trees, and emits SPDX 2.3 JSON plus CycloneDX

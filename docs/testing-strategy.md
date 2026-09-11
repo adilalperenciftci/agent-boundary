@@ -87,6 +87,14 @@ The wire decoder has unprivileged exact-size and bounded-string unit tests. Linu
 and vet all Go packages; privileged kernel coverage is a separate gate because ordinary hosted
 CI does not provide equivalent eBPF semantics.
 
+`tools/build-release-candidate.sh` generates source SBOMs, builds Linux amd64 `rpf` and
+`rpf-sensor` with fixed Go flags, normalizes archive ordering, ownership, and modification time,
+and emits `SHA256SUMS`. For an offline repeat, first generate and validate `build/sbom`, then set
+`RPF_USE_EXISTING_SBOM=1`; this bypasses generation, not the required non-empty SBOM checks. Two
+consecutive local container runs produced the same archive digest. This is evidence for that
+environment and commit, not a cross-builder reproducibility claim. `actionlint` validates the
+SHA-pinned release-candidate workflow; only an inspected hosted run can establish its attestation.
+
 Native Go fuzz targets cover canonical event streams, policy documents, and in-toto/SLSA
 Statement parsing. Ordinary `go test` executes their checked-in seeds; a read-only weekly/manual
 workflow runs each target for 30 seconds. This is bounded parser robustness coverage, not evidence
