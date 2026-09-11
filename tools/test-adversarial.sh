@@ -15,6 +15,9 @@ policy=lab/kernel/policy.json
 callback=/src/build/out/rpf-local-connect
 mock=/src/build/out/rpf-mock-server
 ready=build/out/adversarial-mock.ready
+auth_target=/src/build/out/rpf-authz-target
+auth_proof=/src/build/out/rpf-authz-proof
+auth_ready=build/out/adversarial-auth.ready
 mock_pid=
 
 if ! mountpoint -q /sys/kernel/tracing; then
@@ -26,7 +29,7 @@ cleanup() {
   if [ -n "$mock_pid" ]; then
     kill "$mock_pid" 2>/dev/null || true
   fi
-  rm -f "$ready"
+  rm -f "$ready" "$auth_ready"
   rm -f "$renamed"
   rmdir "$fixture_cgroup" 2>/dev/null || true
 }
@@ -35,7 +38,7 @@ cgroup_id=$(stat -c %i "$fixture_cgroup")
 boot_id=$(cat /proc/sys/kernel/random/boot_id)
 cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' ' -f 1)
 rm -f "$evidence" "$graph" "$artifact" "$provenance"
-rm -f "$ready"
+rm -f "$ready" "$auth_ready"
 cp /bin/sh "$renamed"
 chmod 0700 "$renamed"
 if [ -d "$bundle" ]; then
@@ -69,6 +72,33 @@ fi
   sh "$fixture_cgroup" "$callback"
 wait "$mock_pid"
 mock_pid=
+
+"$auth_target" --listen 127.0.0.1:18081 --mode intentionally-vulnerable --ready-file "$auth_ready" &
+mock_pid=$!
+attempt=0
+while [ ! -f "$auth_ready" ] && [ "$attempt" -lt 50 ]; do
+  sleep 0.05
+  attempt=$((attempt + 1))
+done
+test -f "$auth_ready"
+/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" --address 127.0.0.1:18081 --expect grant' \
+  sh "$fixture_cgroup" "$auth_proof"
+wait "$mock_pid"
+mock_pid=
+rm -f "$auth_ready"
+
+"$auth_target" --listen 127.0.0.1:18081 --mode patched --ready-file "$auth_ready" &
+mock_pid=$!
+attempt=0
+while [ ! -f "$auth_ready" ] && [ "$attempt" -lt 50 ]; do
+  sleep 0.05
+  attempt=$((attempt + 1))
+done
+test -f "$auth_ready"
+/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" --address 127.0.0.1:18081 --expect deny' \
+  sh "$fixture_cgroup" "$auth_proof"
+wait "$mock_pid"
+mock_pid=
 wait "$sensor_pid" || status=$?
 if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 130 ]; then
   echo "adversarial sensor exited unexpectedly: $status" >&2
@@ -83,6 +113,8 @@ grep -q '"path":"/src/build/out/rpf-renamed-shell"' "$evidence"
 test "$(grep -c '"operation":"file_open_sensitive"' "$evidence")" -eq 2
 grep -q '"operation":"network_connect"' "$evidence"
 grep -q '"destination":"127.0.0.1:18080"' "$evidence"
+test "$(grep -c '"destination":"127.0.0.1:18081"' "$evidence")" -eq 2
+test "$(grep -c '"path":"/src/build/out/rpf-authz-proof"' "$evidence")" -eq 4
 if grep -q 'not-a-real-secret' "$evidence"; then
   echo "synthetic credential value leaked into evidence" >&2
   exit 1

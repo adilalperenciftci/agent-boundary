@@ -92,6 +92,11 @@ The specimen also contacts only a fixed localhost mock. A cgroup-attached IPv4 c
 the numeric attempt to the helper process; undeclared `127.0.0.1:18080` egress yields
 `RPF-EGRESS-001`. The hook observes attempts and does not claim successful transport or DNS origin.
 
+An intentionally vulnerable localhost authorization fixture demonstrates adapter-role confusion
+with a fixed synthetic marker, then reruns identical input against a patched mode. Exploitability
+and remediation are demonstrated locally. Runtime evidence attributes the proof but cannot tell
+grant from denial; the current rejection is due to undeclared egress, not authorization awareness.
+
 ## Intended architecture
 
 The selected architecture is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto

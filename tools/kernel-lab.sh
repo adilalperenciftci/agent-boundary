@@ -12,5 +12,7 @@ docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-senso
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf ./cmd/rpf
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-local-connect ./cmd/rpf-local-connect
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-mock-server ./cmd/rpf-mock-server
+docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-authz-target ./cmd/rpf-authz-target
+docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-authz-proof ./cmd/rpf-authz-proof
 docker run --rm --privileged -v "$root:/src" -w /src "$image" ./tools/test-sensor.sh
 docker run --rm --privileged -v "$root:/src" -w /src "$image" ./tools/test-adversarial.sh

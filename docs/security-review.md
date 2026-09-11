@@ -15,12 +15,16 @@ evidence, process attribution was retained, and policy rejected the bundle with
 
 ## Intentionally vulnerable fixtures
 
-No intentionally vulnerable service has been implemented or executed yet. No vulnerability or
-exploitability claim is made in this section.
+EXP-001 provides a single-request localhost service whose explicitly vulnerable mode trusts
+attacker-controlled adapter-role metadata. The paired patched mode derives authorization from the
+synthetic session role. Both are repository-owned, disposable, and use only fixed synthetic data.
 
 ## Exploitability-confirmed findings
 
-None yet. MBE-001 validates behavior detection, not exploitation of a vulnerability.
+EXP-001 exists and was dynamically exploitable: the fixed proof crossed the synthetic reader/admin
+boundary and obtained a harmless marker. See
+[EXP-001](lab/EXP-001-adapter-role-confusion.md). Telemetry observed the proof but did not identify
+the authorization semantic; policy rejection came from undeclared egress.
 
 ## Exploitability-rejected hypotheses
 
@@ -28,7 +32,10 @@ None yet; no exploit hypothesis has completed the required dynamic validation cy
 
 ## Authorization-boundary experiments
 
-Not yet executed. No unauthorized-access detection claim is made.
+EXP-001 vulnerable mode granted a synthetic admin marker based on adapter metadata. Patched mode
+denied identical input. The responsible proof process and connection were attributed correctly.
+The detector cannot distinguish grant from denial; this is a confirmed blind spot, not a negative
+exploitability result.
 
 ## Detection-evasion experiments
 
@@ -39,15 +46,19 @@ does not establish general evasion resistance.
 
 ## Exploit-to-telemetry correlation
 
-No exploit chain has been confirmed. For MBE-001, the non-exploit chain is: fixture shell input →
-successful `openat` → kernel entry/exit correlation → categorized event → process/graph edge →
-`RPF-SENSITIVE-001` → `REJECT`.
+For MBE-001, the non-exploit chain is: fixture shell input → successful `openat` → kernel
+entry/exit correlation → categorized event → process/graph edge → `RPF-SENSITIVE-001` → `REJECT`.
+
+For EXP-001: fixed proof input → vulnerable role selection → synthetic marker grant → proof
+process/connect observation → graph edge → undeclared-egress finding → `REJECT`. The vulnerability
+was exploitable and observable, but the authorization violation itself was not detected.
 
 ## Patch validation
 
-No vulnerable target patch cycle has been completed yet. Parser resource limits and artifact
-substitution checks are regression-tested defensive controls, not remediations of a demonstrated
-lab vulnerability.
+EXP-001 patched mode was rerun with the exact proof and denied the marker while returning a valid
+response. Kernel telemetry remained present. Benign authorization functionality is unit-tested
+for the trusted admin role through the common authorization function. Parser resource limits and
+artifact substitution checks remain defensive regressions, not this target's remediation.
 
 ## Claim matrix
 
@@ -56,3 +67,5 @@ lab vulnerability.
 | MBE-001 baseline | not applicable | not applicable | yes | yes | yes | not applicable |
 | MBE-001 renamed shell | not applicable | not applicable | yes | yes | yes | not applicable |
 | MBE-001 localhost callback | not applicable | not applicable | yes | yes | yes | not applicable |
+| EXP-001 vulnerable role confusion | yes | yes | yes | no (authorization semantic) | yes (egress reason) | not applicable |
+| EXP-001 patched role handling | no for original flaw | original proof rejected | yes | no (authorization semantic) | yes (egress reason) | yes |

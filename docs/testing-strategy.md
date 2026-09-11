@@ -39,6 +39,11 @@ in evidence, one fixed numeric localhost callback attributed to its helper, all 
 zero, and final `REJECT` containing both sensitive-access and egress reasons. The client and mock
 server have unit tests rejecting non-loopback configuration. This is behavior emulation, not
 malware execution or a field detection-rate benchmark.
+
+The same script runs EXP-001 twice with byte-identical authorization claims: explicitly vulnerable
+mode must grant the synthetic marker and patched mode must deny it. Both proof processes and
+loopback attempts must appear in telemetry. This is a complete local exploit/patch path, while the
+documented result remains that authorization semantics are not detected by current kernel signals.
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.
