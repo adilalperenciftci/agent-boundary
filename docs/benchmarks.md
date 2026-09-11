@@ -16,6 +16,17 @@ sample. Compare distributions from the same machine; do not compare a WSL2 sampl
 native Linux runner. A benchmark regression gate is not enabled until variance and representative
 event-stream sizes are characterized.
 
+For a bounded kernel comparison in the privileged lab image, build the binaries first and run:
+
+```sh
+RPF_BENCH_ITERATIONS=100 ./tools/benchmark-kernel.sh
+```
+
+This runs the same fixed artifact writer in one cgroup with and without the sensor, reports paired
+wall-clock nanoseconds, observed event rate, and loss causes, and refuses to emit a result if any
+known event is lost. It is a micro workload dominated by process launch and cgroup entry; it is
+not a representative build-overhead claim.
+
 ## Current measurement status
 
 | Metric | Status | Reason |
@@ -28,6 +39,8 @@ event-stream sizes are characterized.
 | build-time overhead | not measured | no statistically repeated representative builds yet |
 | Cosign/keyless latency | not measured | current lab uses offline keys and no transparency log |
 | controlled false positives/negatives | scenario assertions only | corpus is too small for a rate claim |
+| paired fixed-fixture sensor wall overhead | five recorded samples | one WSL2 host and process-launch-dominated fixture |
+| fixed-fixture observed event rate | five recorded samples | 203 events/sample; not sustained-build throughput |
 
 Measured values must not be promoted to README performance claims without the corresponding raw
 results and environment metadata. Event-loss counters in functional tests establish zero observed
@@ -49,3 +62,7 @@ single-host sample is not a regression threshold or a representative build workl
 
 Larger representative streams and repeated independent process runs are still required before
 setting a regression threshold. These numbers exclude kernel collection and Cosign.
+
+The kernel-fixture raw samples are in [the dated result](benchmark-results/2026-09-11-kernel-fixture.txt).
+The median paired wall overhead in that narrow run was 9.46% with an observed range of -0.15% to
+14.35%; the negative sample is retained and reflects measurement noise, not a claimed sensor speedup.
