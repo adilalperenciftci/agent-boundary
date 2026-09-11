@@ -79,8 +79,11 @@ type Sensor struct {
 }
 
 type LossCounters struct {
-	RingBuffer  uint64
-	Correlation uint64
+	RingBuffer     uint64
+	Correlation    uint64
+	PathRead       uint64
+	MapUpdate      uint64
+	CgroupMismatch uint64
 }
 
 type Config struct {
@@ -269,7 +272,20 @@ func (sensor *Sensor) Loss() (LossCounters, error) {
 	if err != nil {
 		return LossCounters{}, err
 	}
-	return LossCounters{RingBuffer: ring, Correlation: correlation}, nil
+	pathRead, err := read("path_read_drops")
+	if err != nil {
+		return LossCounters{}, err
+	}
+	mapUpdate, err := read("map_update_drops")
+	if err != nil {
+		return LossCounters{}, err
+	}
+	cgroupMismatch, err := read("cgroup_mismatch_drops")
+	if err != nil {
+		return LossCounters{}, err
+	}
+	return LossCounters{RingBuffer: ring, Correlation: correlation, PathRead: pathRead,
+		MapUpdate: mapUpdate, CgroupMismatch: cgroupMismatch}, nil
 }
 
 func (sensor *Sensor) Close() error {

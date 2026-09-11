@@ -49,6 +49,8 @@ outside the defended trust boundary.
 
 Write-open telemetry pairs `openat` entry and exit in a bounded hash map. Map insertion failure,
 path read/truncation, or cgroup migration during the syscall increments `kernel_correlation`.
+Finalization also reports those causes separately as `kernel_map_update`, `kernel_path_read`, and
+`kernel_cgroup_mismatch`; their sum is expected to equal the aggregate in current code.
 Only successful write-intent opens are emitted. Paths are copied user arguments, not resolved
 kernel dentries: symlinks, relative paths, directory FDs, rename publication, `openat2`, inherited
 descriptors, and mmap writes are not yet resolved. Artifact attribution therefore means

@@ -19,6 +19,7 @@ provenance=${RPF_TEST_PROVENANCE:-build/out/sensor-test-provenance.json}
 bundle=${RPF_TEST_BUNDLE:-build/out/sensor-test-bundle}
 full_acceptance=${RPF_TEST_FULL_ACCEPTANCE:-1}
 enter=/src/build/out/rpf-cgroup-enter
+build_fixture=/src/build/out/rpf-build-fixture
 policy=lab/kernel/policy.json
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
@@ -65,8 +66,7 @@ while [ ! -f "$ready" ] && [ "$attempt" -lt 50 ]; do
 done
 test -f "$ready"
 /usr/bin/whoami >/dev/null
-"$enter" --cgroup "$fixture_cgroup" -- /bin/echo rpf-synthetic-exec
-"$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c 'printf rpf-artifact-v1 > "$1"' sh "$artifact"
+"$enter" --cgroup "$fixture_cgroup" -- "$build_fixture" --artifact "$artifact"
 "$enter" --cgroup "$fixture_cgroup" -- "$callback" --address 127.0.0.1:18082
 wait "$mock_pid"
 mock_pid=
@@ -77,7 +77,7 @@ if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 130 ]; then
   exit "$status"
 fi
 grep -q '"operation":"sensor_started"' "$output"
-grep -q '"path":"/bin/echo"' "$output"
+grep -q '"path":"/src/build/out/rpf-build-fixture"' "$output"
 grep -q '"operation":"file_open_output"' "$output"
 grep -q '"operation":"artifact_finalized"' "$output"
 grep -q '"destination":"127.0.0.1:18082"' "$output"
@@ -89,13 +89,21 @@ if grep -q '"path":"/usr/bin/whoami"' "$output"; then
 fi
 grep -q '"kernel_reserve":0' "$output"
 grep -q '"kernel_correlation":0' "$output"
+grep -q '"kernel_path_read":0' "$output"
+grep -q '"kernel_map_update":0' "$output"
+grep -q '"kernel_cgroup_mismatch":0' "$output"
+correlation=$(sed -n 's/.*"kernel_correlation":\([0-9][0-9]*\).*/\1/p' "$output")
+path_read=$(sed -n 's/.*"kernel_path_read":\([0-9][0-9]*\).*/\1/p' "$output")
+map_update=$(sed -n 's/.*"kernel_map_update":\([0-9][0-9]*\).*/\1/p' "$output")
+cgroup_mismatch=$(sed -n 's/.*"kernel_cgroup_mismatch":\([0-9][0-9]*\).*/\1/p' "$output")
+test "$correlation" -eq $((path_read + map_update + cgroup_mismatch))
 grep -q '"decode":0' "$output"
 grep -q '"uid":65534' "$output"
 grep -q '"gid":65534' "$output"
 grep -q '"operation":"sensor_finalized"' "$output"
 "$validator" validate-events --events "$output"
 "$validator" graph-events --events "$output" --output "$graph"
-grep -q '"executable":"/bin/echo"' "$graph"
+grep -q '"executable":"/src/build/out/rpf-build-fixture"' "$graph"
 grep -q '"kind":"unobserved_exec_parent"' "$graph"
 grep -q '"kind":"file_open_output"' "$graph"
 grep -q '"kind":"artifact_finalized"' "$graph"

@@ -40,7 +40,7 @@ status=0
 test "$status" -eq 4
 
 # A byte-level modification without recomputing commitments must not parse.
-sed 's#/bin/echo#/bin/ech0#' "$events" >"$tampered"
+sed 's#rpf-build-fixture#rpf-build-fixtur0#' "$events" >"$tampered"
 status=0
 "$validator" validate-events --events "$tampered" >/dev/null 2>&1 || status=$?
 test "$status" -eq 4

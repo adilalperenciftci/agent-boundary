@@ -87,6 +87,18 @@ struct {
     __type(value, __u64);
 } correlation_drops SEC(".maps");
 
+#define LOSS_MAP(name) \
+struct { \
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY); \
+    __uint(max_entries, 1); \
+    __type(key, __u32); \
+    __type(value, __u64); \
+} name SEC(".maps")
+
+LOSS_MAP(path_read_drops);
+LOSS_MAP(map_update_drops);
+LOSS_MAP(cgroup_mismatch_drops);
+
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 4096);
@@ -205,8 +217,11 @@ int observe_openat_enter(struct trace_event_raw_sys_enter___local *ctx)
     __u64 key = bpf_get_current_pid_tgid();
     struct pending_open pending = {};
     pending.flags = (__u32)ctx->args[2];
+    if ((pending.flags & WRITE_OPEN_FLAGS) == 0 && target_sensitive_path[0] == '\0')
+        return 0;
     long path_length = bpf_probe_read_user_str(pending.filename, sizeof(pending.filename), (void *)ctx->args[1]);
     if (path_length < 0 || path_length >= sizeof(pending.filename)) {
+        increment_counter(&path_read_drops);
         increment_counter(&correlation_drops);
         return 0;
     }
@@ -216,8 +231,10 @@ int observe_openat_enter(struct trace_event_raw_sys_enter___local *ctx)
         pending.kind = EVENT_FILE_OPEN_WRITE;
     else
         return 0;
-    if (bpf_map_update_elem(&pending_opens, &key, &pending, BPF_ANY) < 0)
+    if (bpf_map_update_elem(&pending_opens, &key, &pending, BPF_ANY) < 0) {
+        increment_counter(&map_update_drops);
         increment_counter(&correlation_drops);
+    }
     return 0;
 }
 
@@ -230,6 +247,7 @@ int observe_openat_exit(struct trace_event_raw_sys_exit___local *ctx)
         return 0;
 
     if (bpf_get_current_cgroup_id() != target_cgroup_id) {
+        increment_counter(&cgroup_mismatch_drops);
         increment_counter(&correlation_drops);
         bpf_map_delete_elem(&pending_opens, &key);
         return 0;

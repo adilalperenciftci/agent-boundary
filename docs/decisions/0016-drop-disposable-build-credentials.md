@@ -23,5 +23,7 @@ fixture must fail a real evidence append attempt.
 The build no longer shares ordinary Unix file authority or inherited environment secrets with the
 collector. The helper is not a general sandbox: the container remains privileged, the collector
 remains root, and kernel/host root is outside the defended threat boundary. The observed tamper
-attempt can race process exit: repeated runs observed correlation-loss counts of zero and one.
-Strict verification accepts completeness only for zero and emits `RPF-EVIDENCE-001` otherwise.
+attempt co-occurred with correlation-loss counts of zero and one across repeated runs. Added
+cause-specific counters attributed the non-zero case to path read, not map update or cgroup
+mismatch. Strict verification accepts completeness only for zero and emits `RPF-EVIDENCE-001`
+otherwise.

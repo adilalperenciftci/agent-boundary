@@ -11,7 +11,7 @@ No false-positive or false-negative rate is reported from these curated fixtures
 ## Privileged sensor tests
 
 `tools/test-sensor.sh` runs only in a disposable privileged Linux environment. The sensor stays
-outside a temporary fixture cgroup. Fixed echo, shell, and local-connect processes move into that
+outside a temporary fixture cgroup. Fixed static build-fixture and local-connect processes move into that
 cgroup before exec and must be present, while a `/usr/bin/whoami` control executed outside the
 target cgroup must be absent. The test also requires a `sensor_finalized` event and every
 implemented loss counter to be zero, so a lossy run cannot pass as clean. This proves exact-ID
@@ -75,8 +75,9 @@ remain intentionally unchanged; current kernel signals do not detect authorizati
 
 Both adversarial builds run as UID/GID 65534 with `no_new_privs` and a four-variable synthetic
 environment. An attempted append to the root-owned 0600 evidence file must fail. On the tested
-kernel repeated runs observed either zero or one correlation-loss event because the denied open can
-race process exit. The test therefore requires `complete` when the counter is zero, or
+kernel repeated runs observed either zero or one correlation-loss event. Cause-specific counters
+later identified the non-zero case as a path-read failure, while map-update and cgroup-mismatch
+remained zero. The test therefore requires `complete` when the aggregate and all causes are zero, or
 `incomplete` plus `RPF-EVIDENCE-001` when it is non-zero; sensitive/egress findings and `REJECT`
 remain mandatory in both cases. The benign UID-dropped baseline separately requires all counters
 to remain zero and `ALLOW`.
@@ -87,6 +88,12 @@ regresses the Linux per-thread credential race found during the full-suite revie
 diagnostics are kept outside the zero-loss benign sensor baseline because dynamically linked
 identity lookup can introduce unrelated `openat` path-capture uncertainty; the baseline instead
 requires UID/GID 65534 on its actual build events.
+
+The benign artifact producer is a static repository-lab helper restricted to the fixed generated
+artifact name under `/src/build/out`. Once read-only opens were filtered before pathname access
+when no sensitive profile is active, 20 consecutive baseline runs completed with zero implemented
+loss and `ALLOW`. This is a bounded reproducibility check on the recorded WSL2 kernel, not a rate
+or portability claim.
 
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into

@@ -182,7 +182,9 @@ func main() {
 		ObservedAt: now(), MonotonicNS: boottimeNS(), Operation: "sensor_finalized",
 		Resource: map[string]any{
 			"kernel_reserve": loss.RingBuffer, "kernel_correlation": loss.Correlation,
-			"decode": decodeLoss, "queue": 0, "persistence": 0,
+			"kernel_path_read": loss.PathRead, "kernel_map_update": loss.MapUpdate,
+			"kernel_cgroup_mismatch": loss.CgroupMismatch,
+			"decode":                 decodeLoss, "queue": 0, "persistence": 0,
 			"counter_read_error": counterReadError,
 		},
 		Outcome: rpf.Outcome{Status: "success"},

@@ -109,6 +109,9 @@ an explicit origin and never replace the numeric destination.
   "loss": {
     "kernel_reserve": 0,
     "kernel_correlation": 0,
+    "kernel_path_read": 0,
+    "kernel_map_update": 0,
+    "kernel_cgroup_mismatch": 0,
     "decode": 0,
     "queue": 0,
     "persistence": 0,

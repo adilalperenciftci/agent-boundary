@@ -16,6 +16,9 @@ Userspace replaces the raw path with a configured category, binds a hash of the 
 into sensor configuration identity, and never reads or records file content.
 Sensitive-path equality takes precedence over generic write-open classification, so `O_RDWR` does
 not erase the security category. The lab permanently exercises both `O_RDONLY` and `O_RDWR`.
+When no sensitive path is configured, read-only opens are rejected by flags before dereferencing
+the userspace pathname. They cannot produce a selected event and therefore cannot create false
+correlation loss in the benign profile.
 
 ## Consequences
 

@@ -141,6 +141,11 @@ grep -q '"decode":0' "$evidence"
 grep -q '"kernel_reserve":0' "$evidence"
 grep -q '"uid":65534' "$evidence"
 grep -q '"gid":65534' "$evidence"
+correlation=$(sed -n 's/.*"kernel_correlation":\([0-9][0-9]*\).*/\1/p' "$evidence")
+path_read=$(sed -n 's/.*"kernel_path_read":\([0-9][0-9]*\).*/\1/p' "$evidence")
+map_update=$(sed -n 's/.*"kernel_map_update":\([0-9][0-9]*\).*/\1/p' "$evidence")
+cgroup_mismatch=$(sed -n 's/.*"kernel_cgroup_mismatch":\([0-9][0-9]*\).*/\1/p' "$evidence")
+test "$correlation" -eq $((path_read + map_update + cgroup_mismatch))
 
 "$verifier" graph-events --events "$evidence" --output "$graph"
 grep -q '"kind":"file_open_sensitive"' "$graph"
@@ -163,8 +168,12 @@ fi
 printf '%s' "$decision_output" | grep -q 'RPF-SENSITIVE-001'
 printf '%s' "$decision_output" | grep -q 'RPF-EGRESS-001'
 if grep -q '"kernel_correlation":0' "$evidence"; then
+  grep -q '"kernel_path_read":0' "$evidence"
+  grep -q '"kernel_map_update":0' "$evidence"
+  grep -q '"kernel_cgroup_mismatch":0' "$evidence"
   printf '%s' "$decision_output" | grep -q '"completeness":"complete"'
 else
+  grep -Eq '"kernel_(path_read|map_update|cgroup_mismatch)":[1-9][0-9]*' "$evidence"
   printf '%s' "$decision_output" | grep -q 'RPF-EVIDENCE-001'
   printf '%s' "$decision_output" | grep -q '"completeness":"incomplete"'
 fi

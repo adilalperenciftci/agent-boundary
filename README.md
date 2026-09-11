@@ -80,6 +80,11 @@ finalized zero-loss record. It then creates explicitly unsigned local SLSA v1 pr
 Runtime Trace bundle, requires `ALLOW`, substitutes the artifact, and requires `REJECT`. See
 [kernel support](docs/kernel-support.md) for exact limits.
 
+The same command ends with `tools/final-acceptance.sh`, which reruns benign, vulnerable, and
+patched paths and writes the machine-readable explanation to
+`build/out/final-acceptance-report.json`. See the
+[acceptance demonstration](docs/acceptance-demonstration.md).
+
 The lab also signs the Runtime Trace and local provenance with Cosign 3.1.2 standardized bundles
 using a synthetic ephemeral key and verifies byte tampering. Transparency is deliberately absent
 and explicitly bypassed in this local-only test; no keyless identity or Rekor claim is made.

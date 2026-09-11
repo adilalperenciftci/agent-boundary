@@ -4,9 +4,13 @@ This document records demonstrated results separately from hypotheses. “Observ
 evidence exists; “detected” means a rule emitted a finding; “rejected” means the final policy
 decision was `REJECT`.
 
+The sections below are three role-separated review passes performed during implementation, not a
+claim of third-party human audit. Each pass used its own threat questions and converted material
+findings into code and regressions; unresolved trust and portability limits remain explicit.
+
 ## Kernel/security reviewer
 
-Interim review found that kernel-reported parent keys could produce graph edges whose parent node
+The kernel pass found that kernel-reported parent keys could produce graph edges whose parent node
 was absent from the observation interval without an explicit uncertainty marker. Graph schema
 v0.2 fixes this by labelling each parent `observed`, `unobserved`, or `none`; unit and privileged
 graph assertions cover the distinction. This improves claim precision but does not recover missing
@@ -17,9 +21,14 @@ was absent, contradicting the node label. Graph construction now assigns
 `unobserved_exec_parent` after collecting all nodes, with positive, negative, and privileged
 regressions. No missing ancestor is synthesized.
 
+Loss-cause instrumentation exposed that the no-sensitive-path baseline still read every read-only
+`openat` pathname and could report irrelevant no-fault read failures. The BPF program now filters
+those operations by flags before pathname access when sensitive monitoring is disabled. Write
+opens and all opens under an active sensitive-path profile retain fail-closed path-read accounting.
+
 ## Supply-chain reviewer
 
-Interim review found that SLSA `builder.id` was required but not authorized, while repository
+The supply-chain pass found that SLSA `builder.id` was required but not authorized, while repository
 identity was only internally correlated. A consistently forged identity could pass policy if its
 signature key was otherwise trusted. The verifier now binds `runDetails.builder.id` to the runtime
 correlation identity and requires exact policy allowlists for builder and repository. Regression
@@ -37,7 +46,8 @@ encoding. It now hashes typed JSON fields, so embedded separators cannot change 
 
 ## Detection engineer
 
-Interim review found that artifact-producer identity was present in evidence and graph edges but
+The detection-engineering pass found that artifact-producer identity was present in evidence and
+graph edges but
 had no dedicated policy control; the general executable rule could produce only `REVIEW`. Policy
 now requires an exact artifact-producer allowlist and emits `RPF-ARTIFACT-PRODUCER-001` with
 `REJECT` for any other producer. A regression uses a consistently renamed producer so the finding
@@ -56,8 +66,10 @@ host environment values. A full-suite rerun exposed a Go thread-credential race 
 retained supplementary group 0; locking the helper to one OS thread before credential changes and
 requiring exact `id` output fixed the observed path. A real append to the collector's 0600 evidence
 file is denied. Repeated
-runs observed correlation-loss counts of zero and one: strict verification requires complete
-evidence for zero, and `incomplete` plus `RPF-EVIDENCE-001` for non-zero. Either path retains the
+runs observed correlation-loss counts of zero and one. Cause-specific counters identified the
+non-zero case as path-read failure, not the previously hypothesized process-exit race; map update
+and cgroup mismatch remained zero. Strict verification requires complete evidence for zero, and
+`incomplete` plus `RPF-EVIDENCE-001` for non-zero. Either path retains the
 behavioral `REJECT`. This isolates the synthetic build from ordinary collector files but not from
 host root, the privileged container, kernel compromise, or a malicious collector.
 
@@ -149,6 +161,10 @@ the marker while returning a valid response and still producing its benign test 
 telemetry remained present. Benign authorization functionality is unit-tested for the trusted
 admin role through the common authorization function. Parser resource limits and artifact
 substitution checks remain defensive regressions, not this target's remediation.
+
+The consolidated acceptance script preserves these as separate claims in a generated report:
+exploitability, telemetry, detection reasons, policy outcome, and remediation are not collapsed
+into one boolean.
 
 ## Claim matrix
 
