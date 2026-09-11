@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 #include "vmlinux.h"
 #include <bpf/bpf_core_read.h>
+#include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 
 #define TASK_COMM_LEN 16
@@ -8,6 +9,7 @@
 #define EVENT_EXEC 1
 #define EVENT_FILE_OPEN_WRITE 2
 #define EVENT_FILE_OPEN_SENSITIVE 3
+#define EVENT_NETWORK_CONNECT4 4
 #define O_WRONLY 1
 #define O_RDWR 2
 #define O_CREAT 0100
@@ -30,6 +32,9 @@ struct security_event {
     __u32 parent_pid_namespace;
     __u32 kind;
     __u32 flags;
+    __u32 destination_ipv4;
+    __u32 destination_port;
+    __u32 protocol;
     char comm[TASK_COMM_LEN];
     char filename[PATH_LEN];
 };
@@ -242,6 +247,25 @@ int observe_openat_exit(struct trace_event_raw_sys_exit___local *ctx)
     }
     bpf_map_delete_elem(&pending_opens, &key);
     return 0;
+}
+
+SEC("cgroup/connect4")
+int observe_connect4(struct bpf_sock_addr *ctx)
+{
+    if (bpf_get_current_cgroup_id() != target_cgroup_id)
+        return 1;
+
+    struct security_event *event = reserve_event();
+    if (!event)
+        return 1;
+
+    fill_process(event);
+    event->kind = EVENT_NETWORK_CONNECT4;
+    event->destination_ipv4 = ctx->user_ip4;
+    event->destination_port = bpf_ntohs(ctx->user_port);
+    event->protocol = ctx->protocol;
+    bpf_ringbuf_submit(event, 0);
+    return 1;
 }
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

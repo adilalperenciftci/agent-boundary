@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/cilium/ebpf"
@@ -23,6 +24,7 @@ const (
 	EventExec      = 1
 	EventOpen      = 2
 	EventSensitive = 3
+	EventConnect4  = 4
 )
 
 type KernelEvent struct {
@@ -40,6 +42,9 @@ type KernelEvent struct {
 	ParentPIDNamespace uint32 `json:"parent_pid_namespace"`
 	Kind               uint32 `json:"kind"`
 	Flags              uint32 `json:"flags"`
+	DestinationIPv4    uint32 `json:"destination_ipv4"`
+	DestinationPort    uint32 `json:"destination_port"`
+	Protocol           uint32 `json:"protocol"`
 	Command            string `json:"command"`
 	Filename           string `json:"filename"`
 }
@@ -59,8 +64,12 @@ type wireExecEvent struct {
 	ParentPIDNamespace uint32
 	Kind               uint32
 	Flags              uint32
+	DestinationIPv4    uint32
+	DestinationPort    uint32
+	Protocol           uint32
 	Command            [commLength]byte
 	Filename           [pathLength]byte
+	Padding            [4]byte
 }
 
 type Sensor struct {
@@ -76,12 +85,24 @@ type LossCounters struct {
 
 type Config struct {
 	CgroupID      uint64
+	CgroupPath    string
 	SensitivePath string
 }
 
 func Open(objectPath string, config Config) (*Sensor, error) {
 	if config.CgroupID == 0 {
 		return nil, errors.New("target cgroup ID must be non-zero")
+	}
+	if config.CgroupPath == "" {
+		return nil, errors.New("target cgroup path is empty")
+	}
+	cgroupInfo, err := os.Stat(config.CgroupPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat target cgroup: %w", err)
+	}
+	stat, ok := cgroupInfo.Sys().(*syscall.Stat_t)
+	if !ok || stat.Ino != config.CgroupID {
+		return nil, errors.New("target cgroup path and ID do not match")
 	}
 	if len(config.SensitivePath) >= pathLength {
 		return nil, errors.New("sensitive path exceeds kernel record limit")
@@ -134,6 +155,21 @@ func Open(objectPath string, config Config) (*Sensor, error) {
 			return nil, err
 		}
 	}
+	connectProgram := collection.Programs["observe_connect4"]
+	if connectProgram == nil {
+		closeLinks(links)
+		collection.Close()
+		return nil, errors.New("BPF object lacks observe_connect4 program")
+	}
+	connectLink, err := link.AttachCgroup(link.CgroupOptions{
+		Path: config.CgroupPath, Attach: ebpf.AttachCGroupInet4Connect, Program: connectProgram,
+	})
+	if err != nil {
+		closeLinks(links)
+		collection.Close()
+		return nil, fmt.Errorf("attach cgroup connect4 program: %w", err)
+	}
+	links = append(links, connectLink)
 	events := collection.Maps["events"]
 	if events == nil {
 		closeLinks(links)
@@ -181,7 +217,7 @@ func decodeEvent(raw []byte) (KernelEvent, error) {
 	if err := binary.Read(bytes.NewReader(raw), binary.LittleEndian, &wire); err != nil {
 		return KernelEvent{}, fmt.Errorf("decode kernel sample: %w", err)
 	}
-	if wire.Kind != EventExec && wire.Kind != EventOpen && wire.Kind != EventSensitive {
+	if wire.Kind != EventExec && wire.Kind != EventOpen && wire.Kind != EventSensitive && wire.Kind != EventConnect4 {
 		return KernelEvent{}, fmt.Errorf("unsupported kernel event kind %d", wire.Kind)
 	}
 	return KernelEvent{
@@ -192,6 +228,9 @@ func decodeEvent(raw []byte) (KernelEvent, error) {
 		ParentPIDNamespace: wire.ParentPIDNamespace,
 		Kind:               wire.Kind,
 		Flags:              wire.Flags,
+		DestinationIPv4:    wire.DestinationIPv4,
+		DestinationPort:    wire.DestinationPort,
+		Protocol:           wire.Protocol,
 		Command:            cString(wire.Command[:]), Filename: cString(wire.Filename[:]),
 	}, nil
 }

@@ -31,6 +31,12 @@ WSL2 produced a valid nine-event stream, three graph nodes, seven graph edges, t
 The exact message fields and process IDs vary; the script asserts stable reason codes and
 security invariants. It also searches the evidence bytes and fails if the synthetic value occurs.
 
+The expanded specimen also executes the fixed `rpf-local-connect` helper against the repository
+mock at `127.0.0.1:18080`. The helper and server reject non-loopback configuration. Kernel
+telemetry records one numeric attempted connection, graph reconstruction attributes it to the
+helper, and policy additionally emits `RPF-EGRESS-001`. No claim is made that TCP completed based
+on the kernel event alone; the mock's marker receipt independently proves the local fixture path.
+
 ## Evasion result and blind spots
 
 Executable renaming did not bypass category detection because kernel filtering keys on the exact
@@ -38,3 +44,6 @@ sensitive path, not executable name. Current blind spots include aliases/symlink
 `openat2`, inherited descriptors, mmap access, path replacement, and reads that begin before the
 process has an observed exec identity. The test does not claim that reading a file is malicious;
 policy makes this specific synthetic category forbidden for the build.
+
+The callback variation currently covers IPv4 TCP only. IPv6, DNS-to-address attribution, proxies,
+UDP, and connection outcomes are not inferred from this hook.

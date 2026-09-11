@@ -32,7 +32,7 @@ if [ -d "$bundle" ]; then
 fi
 
 status=0
-timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" \
+timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
   --build-id rpf-sensor-smoke --run-id local-container-smoke --boot-id "$boot_id" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$output" &
 sensor_pid=$!
@@ -90,7 +90,7 @@ if [ "$tamper_status" -ne 3 ]; then
   exit 1
 fi
 before=$(sha256sum "$output")
-if "$binary" --object "$object" --cgroup-id "$cgroup_id" \
+if "$binary" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
   --build-id rpf-sensor-smoke --run-id local-container-smoke --boot-id "$boot_id" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$output" >/dev/null 2>&1; then
   echo "sensor overwrote an existing evidence stream" >&2

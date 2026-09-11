@@ -14,6 +14,7 @@ The current implementation requires:
 - kernel BTF at `/sys/kernel/btf/vmlinux` for CO-RE compilation/relocation;
 - tracefs and the `sched:sched_process_exec` tracepoint;
 - `syscalls:sys_enter_openat` and `syscalls:sys_exit_openat` tracepoints;
+- cgroup v2 program attachment with `BPF_CGROUP_INET4_CONNECT` support;
 - BPF ring-buffer support (Linux 5.8 or newer);
 - permissions to load BPF maps/programs and attach the tracepoint.
 
@@ -55,3 +56,8 @@ descriptors, and mmap writes are not yet resolved. Artifact attribution therefor
 One optional sensitive path is rewritten into BPF read-only configuration. Successful exact-path
 read opens become a category-only userspace event; the raw path and file value are not persisted.
 This intentionally narrow filter has the same unresolved path-alias and alternate-I/O blind spots.
+
+IPv4 connect telemetry attaches to the exact registered cgroup directory and records numeric
+address, port, protocol, and process identity before the transport result. It is an attempted
+connection observation, not proof that a peer accepted data. IPv6 and DNS attribution are not
+implemented. The BPF return value always allows; policy enforcement occurs during verification.

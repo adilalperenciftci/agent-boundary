@@ -12,6 +12,10 @@ renamed=/src/build/out/rpf-renamed-shell
 provenance=build/out/adversarial-provenance.json
 bundle=build/out/adversarial-bundle
 policy=lab/kernel/policy.json
+callback=/src/build/out/rpf-local-connect
+mock=/src/build/out/rpf-mock-server
+ready=build/out/adversarial-mock.ready
+mock_pid=
 
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
@@ -19,6 +23,10 @@ fi
 fixture_cgroup=/sys/fs/cgroup/rpf-adversarial-test-$$
 mkdir "$fixture_cgroup"
 cleanup() {
+  if [ -n "$mock_pid" ]; then
+    kill "$mock_pid" 2>/dev/null || true
+  fi
+  rm -f "$ready"
   rm -f "$renamed"
   rmdir "$fixture_cgroup" 2>/dev/null || true
 }
@@ -27,6 +35,7 @@ cgroup_id=$(stat -c %i "$fixture_cgroup")
 boot_id=$(cat /proc/sys/kernel/random/boot_id)
 cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' ' -f 1)
 rm -f "$evidence" "$graph" "$artifact" "$provenance"
+rm -f "$ready"
 cp /bin/sh "$renamed"
 chmod 0700 "$renamed"
 if [ -d "$bundle" ]; then
@@ -35,16 +44,31 @@ if [ -d "$bundle" ]; then
 fi
 
 status=0
-timeout --signal=INT 4 "$sensor" --object "$object" --cgroup-id "$cgroup_id" \
+timeout --signal=INT 4 "$sensor" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
   --build-id rpf-adversarial-sensitive --run-id local-adversarial-sensitive --boot-id "$boot_id" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$evidence" \
   --sensitive-path "$credential" --sensitive-category synthetic_credential &
 sensor_pid=$!
 sleep 1
+"$mock" --listen 127.0.0.1:18080 --ready-file "$ready" &
+mock_pid=$!
+attempt=0
+while [ ! -f "$ready" ] && [ "$attempt" -lt 50 ]; do
+  sleep 0.05
+  attempt=$((attempt + 1))
+done
+if [ ! -f "$ready" ]; then
+  echo "local mock did not become ready" >&2
+  exit 1
+fi
 /bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /bin/sh -c "IFS= read -r ignored < \"$2\"; /usr/bin/id; printf rpf-adversarial-artifact > \"$3\""' \
   sh "$fixture_cgroup" "$credential" "$artifact"
 /bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" -c "IFS= read -r ignored < \"$3\""' \
   sh "$fixture_cgroup" "$renamed" "$credential"
+/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" --address 127.0.0.1:18080' \
+  sh "$fixture_cgroup" "$callback"
+wait "$mock_pid"
+mock_pid=
 wait "$sensor_pid" || status=$?
 if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 130 ]; then
   echo "adversarial sensor exited unexpectedly: $status" >&2
@@ -57,6 +81,8 @@ grep -q '"category":"synthetic_credential"' "$evidence"
 grep -q '"path":"/usr/bin/id"' "$evidence"
 grep -q '"path":"/src/build/out/rpf-renamed-shell"' "$evidence"
 test "$(grep -c '"operation":"file_open_sensitive"' "$evidence")" -eq 2
+grep -q '"operation":"network_connect"' "$evidence"
+grep -q '"destination":"127.0.0.1:18080"' "$evidence"
 if grep -q 'not-a-real-secret' "$evidence"; then
   echo "synthetic credential value leaked into evidence" >&2
   exit 1
@@ -67,6 +93,7 @@ grep -q '"kernel_reserve":0' "$evidence"
 
 "$verifier" graph-events --events "$evidence" --output "$graph"
 grep -q '"kind":"file_open_sensitive"' "$graph"
+grep -q '"kind":"network_connect"' "$graph"
 "$verifier" create-local-provenance --artifact "$artifact" --events "$evidence" \
   --repository https://example.test/agent-boundary --revision 1111111111111111111111111111111111111111 \
   --output "$provenance"
@@ -81,3 +108,4 @@ if [ "$decision_status" -ne 3 ]; then
   exit 1
 fi
 printf '%s' "$decision_output" | grep -q 'RPF-SENSITIVE-001'
+printf '%s' "$decision_output" | grep -q 'RPF-EGRESS-001'

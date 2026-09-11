@@ -88,6 +88,10 @@ child, and repeats the read through a renamed local shell. Runtime evidence reco
 ancestry but not content; policy must return `REJECT`. It is explicitly malware-behavior
 emulation, not deployable malicious software.
 
+The specimen also contacts only a fixed localhost mock. A cgroup-attached IPv4 connect hook binds
+the numeric attempt to the helper process; undeclared `127.0.0.1:18080` egress yields
+`RPF-EGRESS-001`. The hook observes attempts and does not claim successful transport or DNS origin.
+
 ## Intended architecture
 
 The selected architecture is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto

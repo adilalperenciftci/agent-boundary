@@ -6,10 +6,12 @@ decision was `REJECT`.
 
 ## Controlled malware-behavior experiments
 
-MBE-001 emulates a synthetic credential-file read, child execution, artifact staging, and an
-executable-renaming variation. It is not malware. Both reads were observed and detected, the
-secret value was absent from evidence, process attribution was retained, and policy rejected the
-bundle. See [MBE-001](lab/MBE-001-sensitive-read-and-child.md).
+MBE-001 emulates a synthetic credential-file read, child execution, artifact staging, an
+executable-renaming variation, and a fixed localhost-only callback. It is not malware. Both reads
+and the numeric callback attempt were observed and detected, the secret value was absent from
+evidence, process attribution was retained, and policy rejected the bundle with
+`RPF-SENSITIVE-001` and `RPF-EGRESS-001`. See
+[MBE-001](lab/MBE-001-sensitive-read-and-child.md).
 
 ## Intentionally vulnerable fixtures
 
@@ -53,3 +55,4 @@ lab vulnerability.
 | --- | --- | --- | --- | --- | --- | --- |
 | MBE-001 baseline | not applicable | not applicable | yes | yes | yes | not applicable |
 | MBE-001 renamed shell | not applicable | not applicable | yes | yes | yes | not applicable |
+| MBE-001 localhost callback | not applicable | not applicable | yes | yes | yes | not applicable |

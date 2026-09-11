@@ -35,8 +35,10 @@ trusted-time requirements.
 
 `tools/test-adversarial.sh` runs MBE-001 with a repository-owned fake credential. It requires two
 category findings (ordinary and renamed shell), observed shell-to-child ancestry, no fixture value
-in evidence, all loss counters zero, and final `REJECT`. This is behavior emulation, not malware
-execution or a field detection-rate benchmark.
+in evidence, one fixed numeric localhost callback attributed to its helper, all loss counters
+zero, and final `REJECT` containing both sensitive-access and egress reasons. The client and mock
+server have unit tests rejecting non-loopback configuration. This is behavior emulation, not
+malware execution or a field detection-rate benchmark.
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.

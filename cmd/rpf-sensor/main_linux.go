@@ -5,10 +5,12 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -25,6 +27,7 @@ const maxTrackedProcesses = 65_536
 func main() {
 	objectPath := flag.String("object", "", "compiled CO-RE BPF object")
 	cgroupID := flag.Uint64("cgroup-id", 0, "target cgroup v2 ID")
+	cgroupPath := flag.String("cgroup-path", "", "target cgroup v2 filesystem path")
 	buildID := flag.String("build-id", "", "unique build execution ID")
 	runID := flag.String("run-id", "", "CI or local run ID")
 	bootID := flag.String("boot-id", "", "host boot ID")
@@ -34,9 +37,9 @@ func main() {
 	sensitivePath := flag.String("sensitive-path", "", "optional exact absolute synthetic-sensitive path")
 	sensitiveCategory := flag.String("sensitive-category", "", "category emitted for the configured sensitive path")
 	flag.Parse()
-	if *objectPath == "" || *cgroupID == 0 || *buildID == "" || *runID == "" ||
+	if *objectPath == "" || *cgroupID == 0 || *cgroupPath == "" || *buildID == "" || *runID == "" ||
 		*bootID == "" || *cgroupPathHash == "" || *outputPath == "" || *artifactPath == "" {
-		fatal("--object, --output, --artifact, --build-id, --run-id, --boot-id, --cgroup-path-hash, and non-zero --cgroup-id are required")
+		fatal("--object, --output, --artifact, --build-id, --run-id, --boot-id, --cgroup-path, --cgroup-path-hash, and non-zero --cgroup-id are required")
 	}
 	if !filepath.IsAbs(*artifactPath) {
 		fatal("--artifact must be an absolute path")
@@ -47,19 +50,22 @@ func main() {
 	if *sensitivePath != "" && !filepath.IsAbs(*sensitivePath) {
 		fatal("--sensitive-path must be absolute")
 	}
+	if expected := "sha256:" + rpf.Digest([]byte(*cgroupPath)); *cgroupPathHash != expected {
+		fatal("--cgroup-path-hash does not match --cgroup-path")
+	}
 	object, err := os.ReadFile(*objectPath)
 	if err != nil {
 		fatal("read BPF object: %v", err)
 	}
-	configMaterial := fmt.Sprintf("object_sha256=%s\ncgroup_id=%d\nsensitive_path_sha256=%s\nsensitive_category=%s\n",
-		rpf.Digest(object), *cgroupID, rpf.Digest([]byte(*sensitivePath)), *sensitiveCategory)
+	configMaterial := fmt.Sprintf("object_sha256=%s\ncgroup_id=%d\ncgroup_path_sha256=%s\nsensitive_path_sha256=%s\nsensitive_category=%s\n",
+		rpf.Digest(object), *cgroupID, rpf.Digest([]byte(*cgroupPath)), rpf.Digest([]byte(*sensitivePath)), *sensitiveCategory)
 	source := rpf.Sensor{Name: "rpf-sensor", Version: "0.2.0", ConfigDigest: "sha256:" + rpf.Digest([]byte(configMaterial))}
 	build := rpf.BuildScope{BuildID: *buildID, RunID: *runID, BootID: *bootID, CgroupID: *cgroupID, CgroupPathHash: *cgroupPathHash}
 	chain, err := rpf.NewEventChain(build, source)
 	if err != nil {
 		fatal("initialize event chain: %v", err)
 	}
-	monitor, err := sensor.Open(*objectPath, sensor.Config{CgroupID: *cgroupID, SensitivePath: *sensitivePath})
+	monitor, err := sensor.Open(*objectPath, sensor.Config{CgroupID: *cgroupID, CgroupPath: *cgroupPath, SensitivePath: *sensitivePath})
 	if err != nil {
 		fatal("open sensor: %v", err)
 	}
@@ -125,6 +131,18 @@ func main() {
 				Operation: "file_open_sensitive", Resource: map[string]any{"category": *sensitiveCategory},
 				Outcome: rpf.Outcome{Status: "success"},
 			})
+		case sensor.EventConnect4:
+			observed, ok := processes[process.ProcessKey]
+			if !ok || event.DestinationPort > 65535 {
+				decodeLoss++
+				continue
+			}
+			writeEvent(evidence, chain, rpf.Event{
+				ObservedAt: now(), MonotonicNS: event.MonotonicNS, Process: &observed,
+				Operation: "network_connect",
+				Resource:  map[string]any{"destination": ipv4Destination(event.DestinationIPv4, uint16(event.DestinationPort)), "protocol": event.Protocol},
+				Outcome:   rpf.Outcome{Status: "attempted"},
+			})
 		}
 	}
 	if artifactProducer == nil {
@@ -153,6 +171,12 @@ func main() {
 	if counterReadError {
 		fatal("read loss counter: %v", err)
 	}
+}
+
+func ipv4Destination(address uint32, port uint16) string {
+	var octets [4]byte
+	binary.LittleEndian.PutUint32(octets[:], address)
+	return netip.AddrPortFrom(netip.AddrFrom4(octets), port).String()
 }
 
 func processFromKernel(event sensor.KernelEvent, bootID string) rpf.Process {

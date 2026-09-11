@@ -63,6 +63,26 @@ func TestDecodeEventRejectsUnknownKind(t *testing.T) {
 	}
 }
 
+func TestDecodeConnect4Event(t *testing.T) {
+	wire := wireExecEvent{
+		Kind:            EventConnect4,
+		DestinationIPv4: 0x0100007f,
+		DestinationPort: 18080,
+		Protocol:        6,
+	}
+	var encoded bytes.Buffer
+	if err := binary.Write(&encoded, binary.LittleEndian, wire); err != nil {
+		t.Fatal(err)
+	}
+	event, err := decodeEvent(encoded.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.DestinationIPv4 != 0x0100007f || event.DestinationPort != 18080 || event.Protocol != 6 {
+		t.Fatalf("unexpected connect event: %+v", event)
+	}
+}
+
 func TestCStringWithoutTerminatorUsesBoundedInput(t *testing.T) {
 	if got := cString([]byte("1234")); got != "1234" {
 		t.Fatalf("got %q", got)
