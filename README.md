@@ -84,6 +84,7 @@ The same command ends with `tools/final-acceptance.sh`, which reruns benign, vul
 patched paths and writes the machine-readable explanation to
 `build/out/final-acceptance-report.json`. See the
 [acceptance demonstration](docs/acceptance-demonstration.md).
+The complete controlled-case index is in the [laboratory scenario matrix](docs/lab/scenario-matrix.md).
 
 The lab also signs the Runtime Trace and local provenance with Cosign 3.1.2 standardized bundles
 using a synthetic ephemeral key and verifies byte tampering. Transparency is deliberately absent
