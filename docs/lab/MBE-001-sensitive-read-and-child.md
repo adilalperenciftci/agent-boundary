@@ -24,8 +24,8 @@ Expected policy result: `REJECT` with `RPF-SENSITIVE-001`. The renamed executabl
 ## Reproduction and actual result
 
 Run `./tools/test-adversarial.sh` in the checked-in kernel lab image. On 2026-09-11, Linux
-`6.18.33.2-microsoft-standard-WSL2` produced two independent valid 15-event streams (vulnerable
-and patched authorization fixtures), each with six graph nodes, 13 graph edges and three
+`6.18.33.2-microsoft-standard-WSL2` produced two independent valid 17-event streams (vulnerable
+and patched authorization fixtures), each with seven graph nodes, 15 graph edges and three
 `file_open_sensitive` events. Repeated runs produced correlation-loss counts of zero or one; the
 non-zero cause was a kernel path-read failure. Completeness and `RPF-EVIDENCE-001` followed that
 counter. Both runs ended in

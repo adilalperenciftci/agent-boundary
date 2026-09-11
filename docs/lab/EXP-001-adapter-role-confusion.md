@@ -26,8 +26,8 @@ the service returning a fixed synthetic marker; the marker is not written into r
 On 2026-09-11 in the Linux `6.18.33.2-microsoft-standard-WSL2` disposable lab, the vulnerable run returned
 `granted=true reason=authorized`. The exact same proof against patched mode returned
 `granted=false reason=authorization_denied`. These were independent monitored builds, not two
-application calls hidden in one stream. Each produced a valid 15-event stream, six process nodes,
-13 graph edges, one attributed connection attempt to `127.0.0.1:18081`, an artifact, provenance,
+application calls hidden in one stream. Each produced a valid 17-event stream, seven process nodes,
+15 graph edges, one attributed connection attempt to `127.0.0.1:18081`, an artifact, provenance,
 and runtime trace. The independent loss state was zero or one correlation event; cause-specific
 telemetry attributed the non-zero case to path read, and completeness reflected it.
 

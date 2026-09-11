@@ -10,8 +10,8 @@ The acceptance script executes three actual paths:
    offline Cosign signatures, and policy verify as `ALLOW`; subsequent artifact substitution is
    `REJECT` with `RPF-ARTIFACT-001`;
 2. the intentionally vulnerable localhost authorization fixture, where the fixed proof obtains
-   only a synthetic marker while sensitive access and localhost egress are attributed and policy
-   returns `REJECT`;
+   only a synthetic marker while both target and proof execute in the monitored cgroup, sensitive
+   access and localhost egress are attributed, and policy returns `REJECT`;
 3. the patched fixture with identical proof input, where marker access is denied and benign
    artifact creation remains functional; unchanged sensitive/egress behavior still returns
    `REJECT`.

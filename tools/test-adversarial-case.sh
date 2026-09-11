@@ -33,7 +33,8 @@ mock=/src/build/out/rpf-mock-server
 ready=build/out/$case_name-mock.ready
 auth_target=/src/build/out/rpf-authz-target
 auth_proof=/src/build/out/rpf-authz-proof
-auth_ready=build/out/$case_name-auth.ready
+auth_lab=build/out/$case_name-auth-lab
+auth_ready=$auth_lab/ready
 auth_result=build/out/$case_name-auth-result.txt
 enter=/src/build/out/rpf-cgroup-enter
 repository=https://example.test/agent-boundary
@@ -50,6 +51,7 @@ cleanup() {
     kill "$mock_pid" 2>/dev/null || true
   fi
   rm -f "$ready" "$auth_ready"
+  rmdir "$auth_lab" 2>/dev/null || true
   rm -f "$renamed"
   rmdir "$fixture_cgroup" 2>/dev/null || true
 }
@@ -65,6 +67,10 @@ chmod 0600 "$credential"
 chown 65534:65534 "$artifact"
 chmod 0600 "$artifact"
 rm -f "$ready" "$auth_ready"
+rmdir "$auth_lab" 2>/dev/null || true
+mkdir "$auth_lab"
+chown 65534:65534 "$auth_lab"
+chmod 0700 "$auth_lab"
 cp /bin/sh "$renamed"
 chmod 0755 "$renamed"
 if [ -d "$bundle" ]; then
@@ -104,7 +110,8 @@ printf '%s\n' "$identity"
 wait "$mock_pid"
 mock_pid=
 
-"$auth_target" --listen 127.0.0.1:18081 --mode "$auth_mode" --ready-file "$auth_ready" &
+"$enter" --cgroup "$fixture_cgroup" -- "$auth_target" \
+  --listen 127.0.0.1:18081 --mode "$auth_mode" --ready-file "$auth_ready" &
 mock_pid=$!
 attempt=0
 while [ ! -f "$auth_ready" ] && [ "$attempt" -lt 50 ]; do
@@ -132,6 +139,7 @@ grep -q '"operation":"network_connect"' "$evidence"
 grep -q '"destination":"127.0.0.1:18080"' "$evidence"
 test "$(grep -c '"destination":"127.0.0.1:18081"' "$evidence")" -eq 1
 test "$(grep -c '"path":"/src/build/out/rpf-authz-proof"' "$evidence")" -eq 2
+test "$(grep -c '"path":"/src/build/out/rpf-authz-target"' "$evidence")" -eq 2
 grep -q "$auth_result_pattern" "$auth_result"
 if grep -q 'not-a-real-secret' "$evidence"; then
   echo "synthetic credential value leaked into evidence" >&2

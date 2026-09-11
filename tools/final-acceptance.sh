@@ -26,6 +26,7 @@ grep -q 'granted=false reason=authorization_denied' build/out/adversarial-patche
 grep -q '"operation":"file_open_sensitive"' build/out/adversarial-vulnerable-events.jsonl
 grep -q '"destination":"127.0.0.1:18080"' build/out/adversarial-vulnerable-events.jsonl
 grep -q '"path":"/src/build/out/rpf-authz-proof"' build/out/adversarial-vulnerable-events.jsonl
+grep -q '"path":"/src/build/out/rpf-authz-target"' build/out/adversarial-vulnerable-events.jsonl
 
 mkdir -p "$(dirname "$report")"
 printf '%s\n' \
@@ -41,7 +42,7 @@ printf '%s\n' \
   '  "vulnerable": {' \
   '    "authorization_impact": "CONFIRMED:synthetic marker granted",' \
   '    "decision": "REJECT",' \
-  '    "responsible_processes": ["/bin/sh", "/src/build/out/rpf-renamed-shell", "/src/build/out/rpf-local-connect", "/src/build/out/rpf-authz-proof"],' \
+  '    "responsible_processes": ["/bin/sh", "/src/build/out/rpf-renamed-shell", "/src/build/out/rpf-local-connect", "/src/build/out/rpf-authz-target", "/src/build/out/rpf-authz-proof"],' \
   '    "evidence": ["build/out/adversarial-vulnerable-events.jsonl", "build/out/adversarial-vulnerable-graph.json", "build/out/adversarial-vulnerable-bundle/runtime-trace.json"],' \
   '    "affected_invariants": ["forbidden synthetic credential access", "undeclared localhost egress", "authorization boundary crossed"],' \
   '    "decision_basis": ["RPF-SENSITIVE-001", "RPF-EGRESS-001"],' \

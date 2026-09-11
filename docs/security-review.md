@@ -166,6 +166,10 @@ The consolidated acceptance script preserves these as separate claims in a gener
 exploitability, telemetry, detection reasons, policy outcome, and remediation are not collapsed
 into one boolean.
 
+Both the intentionally vulnerable target and its fixed proof run in the monitored disposable
+cgroup. Their separate exec identities and the proof's localhost connection are retained in the
+execution graph; kernel telemetry still cannot infer the target's semantic grant decision.
+
 ## Claim matrix
 
 | Experiment | Vulnerability exists | Exploit demonstrated | Telemetry observed | Detection identified | Policy rejected | Remediation validated |
