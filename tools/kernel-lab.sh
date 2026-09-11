@@ -11,3 +11,4 @@ docker run --rm -v "$root:/src" -w /src "$image" go vet ./...
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-sensor ./cmd/rpf-sensor
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf ./cmd/rpf
 docker run --rm --privileged -v "$root:/src" -w /src "$image" ./tools/test-sensor.sh
+docker run --rm --privileged -v "$root:/src" -w /src "$image" ./tools/test-adversarial.sh

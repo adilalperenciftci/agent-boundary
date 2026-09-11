@@ -51,3 +51,7 @@ Only successful write-intent opens are emitted. Paths are copied user arguments,
 kernel dentries: symlinks, relative paths, directory FDs, rename publication, `openat2`, inherited
 descriptors, and mmap writes are not yet resolved. Artifact attribution therefore means
 “observed successful write-open plus final userspace hash,” not proof of written bytes.
+
+One optional sensitive path is rewritten into BPF read-only configuration. Successful exact-path
+read opens become a category-only userspace event; the raw path and file value are not persisted.
+This intentionally narrow filter has the same unresolved path-alias and alternate-I/O blind spots.

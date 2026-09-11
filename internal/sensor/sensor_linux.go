@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	commLength = 16
-	pathLength = 256
-	EventExec  = 1
-	EventOpen  = 2
+	commLength     = 16
+	pathLength     = 256
+	EventExec      = 1
+	EventOpen      = 2
+	EventSensitive = 3
 )
 
 type KernelEvent struct {
@@ -73,9 +74,17 @@ type LossCounters struct {
 	Correlation uint64
 }
 
-func Open(objectPath string, cgroupID uint64) (*Sensor, error) {
-	if cgroupID == 0 {
+type Config struct {
+	CgroupID      uint64
+	SensitivePath string
+}
+
+func Open(objectPath string, config Config) (*Sensor, error) {
+	if config.CgroupID == 0 {
 		return nil, errors.New("target cgroup ID must be non-zero")
+	}
+	if len(config.SensitivePath) >= pathLength {
+		return nil, errors.New("sensitive path exceeds kernel record limit")
 	}
 	spec, err := ebpf.LoadCollectionSpec(objectPath)
 	if err != nil {
@@ -85,8 +94,17 @@ func Open(objectPath string, cgroupID uint64) (*Sensor, error) {
 	if !ok {
 		return nil, errors.New("BPF object lacks target_cgroup_id variable")
 	}
-	if err := target.Set(cgroupID); err != nil {
+	if err := target.Set(config.CgroupID); err != nil {
 		return nil, fmt.Errorf("set target cgroup: %w", err)
+	}
+	sensitive, ok := spec.Variables["target_sensitive_path"]
+	if !ok {
+		return nil, errors.New("BPF object lacks target_sensitive_path variable")
+	}
+	var sensitivePath [pathLength]byte
+	copy(sensitivePath[:], config.SensitivePath)
+	if err := sensitive.Set(sensitivePath); err != nil {
+		return nil, fmt.Errorf("set target sensitive path: %w", err)
 	}
 	collection, err := ebpf.NewCollection(spec)
 	if err != nil {
@@ -163,7 +181,7 @@ func decodeEvent(raw []byte) (KernelEvent, error) {
 	if err := binary.Read(bytes.NewReader(raw), binary.LittleEndian, &wire); err != nil {
 		return KernelEvent{}, fmt.Errorf("decode kernel sample: %w", err)
 	}
-	if wire.Kind != EventExec && wire.Kind != EventOpen {
+	if wire.Kind != EventExec && wire.Kind != EventOpen && wire.Kind != EventSensitive {
 		return KernelEvent{}, fmt.Errorf("unsupported kernel event kind %d", wire.Kind)
 	}
 	return KernelEvent{

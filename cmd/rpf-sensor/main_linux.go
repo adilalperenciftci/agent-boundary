@@ -31,6 +31,8 @@ func main() {
 	cgroupPathHash := flag.String("cgroup-path-hash", "", "SHA-256 commitment to registered cgroup path")
 	outputPath := flag.String("output", "", "new canonical evidence JSONL file")
 	artifactPath := flag.String("artifact", "", "absolute artifact path to finalize after monitoring")
+	sensitivePath := flag.String("sensitive-path", "", "optional exact absolute synthetic-sensitive path")
+	sensitiveCategory := flag.String("sensitive-category", "", "category emitted for the configured sensitive path")
 	flag.Parse()
 	if *objectPath == "" || *cgroupID == 0 || *buildID == "" || *runID == "" ||
 		*bootID == "" || *cgroupPathHash == "" || *outputPath == "" || *artifactPath == "" {
@@ -39,18 +41,25 @@ func main() {
 	if !filepath.IsAbs(*artifactPath) {
 		fatal("--artifact must be an absolute path")
 	}
+	if (*sensitivePath == "") != (*sensitiveCategory == "") {
+		fatal("--sensitive-path and --sensitive-category must be supplied together")
+	}
+	if *sensitivePath != "" && !filepath.IsAbs(*sensitivePath) {
+		fatal("--sensitive-path must be absolute")
+	}
 	object, err := os.ReadFile(*objectPath)
 	if err != nil {
 		fatal("read BPF object: %v", err)
 	}
-	configMaterial := fmt.Sprintf("object_sha256=%s\ncgroup_id=%d\n", rpf.Digest(object), *cgroupID)
+	configMaterial := fmt.Sprintf("object_sha256=%s\ncgroup_id=%d\nsensitive_path_sha256=%s\nsensitive_category=%s\n",
+		rpf.Digest(object), *cgroupID, rpf.Digest([]byte(*sensitivePath)), *sensitiveCategory)
 	source := rpf.Sensor{Name: "rpf-sensor", Version: "0.2.0", ConfigDigest: "sha256:" + rpf.Digest([]byte(configMaterial))}
 	build := rpf.BuildScope{BuildID: *buildID, RunID: *runID, BootID: *bootID, CgroupID: *cgroupID, CgroupPathHash: *cgroupPathHash}
 	chain, err := rpf.NewEventChain(build, source)
 	if err != nil {
 		fatal("initialize event chain: %v", err)
 	}
-	monitor, err := sensor.Open(*objectPath, *cgroupID)
+	monitor, err := sensor.Open(*objectPath, sensor.Config{CgroupID: *cgroupID, SensitivePath: *sensitivePath})
 	if err != nil {
 		fatal("open sensor: %v", err)
 	}
@@ -105,6 +114,17 @@ func main() {
 				producer := observed
 				artifactProducer = &producer
 			}
+		case sensor.EventSensitive:
+			observed, ok := processes[process.ProcessKey]
+			if !ok {
+				decodeLoss++
+				continue
+			}
+			writeEvent(evidence, chain, rpf.Event{
+				ObservedAt: now(), MonotonicNS: event.MonotonicNS, Process: &observed,
+				Operation: "file_open_sensitive", Resource: map[string]any{"category": *sensitiveCategory},
+				Outcome: rpf.Outcome{Status: "success"},
+			})
 		}
 	}
 	if artifactProducer == nil {

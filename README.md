@@ -83,6 +83,11 @@ The lab also signs the Runtime Trace and local provenance with Cosign 3.1.2 stan
 using a synthetic ephemeral key and verifies byte tampering. Transparency is deliberately absent
 and explicitly bypassed in this local-only test; no keyless identity or Rekor claim is made.
 
+The first controlled behavior specimen reads only a checked-in fake credential, executes a fixed
+child, and repeats the read through a renamed local shell. Runtime evidence records category and
+ancestry but not content; policy must return `REJECT`. It is explicitly malware-behavior
+emulation, not deployable malicious software.
+
 ## Intended architecture
 
 The selected architecture is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto

@@ -7,6 +7,7 @@
 #define PATH_LEN 256
 #define EVENT_EXEC 1
 #define EVENT_FILE_OPEN_WRITE 2
+#define EVENT_FILE_OPEN_SENSITIVE 3
 #define O_WRONLY 1
 #define O_RDWR 2
 #define O_CREAT 0100
@@ -35,6 +36,7 @@ struct security_event {
 
 struct pending_open {
     __u32 flags;
+    __u32 kind;
     char filename[PATH_LEN];
 };
 
@@ -59,6 +61,7 @@ struct trace_event_raw_sys_exit___local {
 };
 
 const volatile __u64 target_cgroup_id = 0;
+const volatile char target_sensitive_path[PATH_LEN] = {};
 
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
@@ -155,6 +158,19 @@ static __always_inline void fill_process(struct security_event *event)
     bpf_get_current_comm(event->comm, sizeof(event->comm));
 }
 
+static __always_inline bool path_matches_sensitive(const char path[PATH_LEN])
+{
+    if (target_sensitive_path[0] == '\0')
+        return false;
+    for (int index = 0; index < PATH_LEN; index++) {
+        if (path[index] != target_sensitive_path[index])
+            return false;
+        if (path[index] == '\0')
+            return true;
+    }
+    return false;
+}
+
 SEC("tracepoint/sched/sched_process_exec")
 int observe_exec(struct trace_event_raw_sched_process_exec___local *ctx)
 {
@@ -181,18 +197,20 @@ int observe_openat_enter(struct trace_event_raw_sys_enter___local *ctx)
     if (bpf_get_current_cgroup_id() != target_cgroup_id)
         return 0;
 
-    __u32 flags = (__u32)ctx->args[2];
-    if ((flags & WRITE_OPEN_FLAGS) == 0)
-        return 0;
-
     __u64 key = bpf_get_current_pid_tgid();
     struct pending_open pending = {};
-    pending.flags = flags;
+    pending.flags = (__u32)ctx->args[2];
     long path_length = bpf_probe_read_user_str(pending.filename, sizeof(pending.filename), (void *)ctx->args[1]);
     if (path_length < 0 || path_length >= sizeof(pending.filename)) {
         increment_counter(&correlation_drops);
         return 0;
     }
+    if ((pending.flags & WRITE_OPEN_FLAGS) != 0)
+        pending.kind = EVENT_FILE_OPEN_WRITE;
+    else if (path_matches_sensitive(pending.filename))
+        pending.kind = EVENT_FILE_OPEN_SENSITIVE;
+    else
+        return 0;
     if (bpf_map_update_elem(&pending_opens, &key, &pending, BPF_ANY) < 0)
         increment_counter(&correlation_drops);
     return 0;
@@ -216,7 +234,7 @@ int observe_openat_exit(struct trace_event_raw_sys_exit___local *ctx)
         struct security_event *event = reserve_event();
         if (event) {
             fill_process(event);
-            event->kind = EVENT_FILE_OPEN_WRITE;
+            event->kind = pending->kind;
             event->flags = pending->flags;
             __builtin_memcpy(event->filename, pending->filename, sizeof(event->filename));
             bpf_ringbuf_submit(event, 0);

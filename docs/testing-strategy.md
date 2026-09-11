@@ -32,6 +32,11 @@ Runtime Trace bytes into standardized bundles, verifies both against the public 
 a one-byte statement modification to fail. The private key is removed on exit. The local config
 has no Rekor/TSA services, so this test deliberately does not satisfy production transparency or
 trusted-time requirements.
+
+`tools/test-adversarial.sh` runs MBE-001 with a repository-owned fake credential. It requires two
+category findings (ordinary and renamed shell), observed shell-to-child ancestry, no fixture value
+in evidence, all loss counters zero, and final `REJECT`. This is behavior emulation, not malware
+execution or a field detection-rate benchmark.
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.
