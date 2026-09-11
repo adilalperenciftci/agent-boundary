@@ -1,65 +1,239 @@
-# Agent and MCP runtime security landscape, 2026
+# Runtime build evidence landscape, 2026
 
-## Scope
+## Scope and method
 
-This review covers controls at the boundary where an agent selects and invokes a tool. It prioritizes protocol specifications, vendor security guidance, standards, and original research available on 11 September 2026. Claims from experimental papers are treated as evidence of attack feasibility, not as production guarantees.
+This review asks which current standards and open-source systems can bind observed build-time
+behavior to an artifact and make that relationship independently verifiable. It distinguishes
+inventory, declared provenance, runtime observation, signing, and policy evaluation because no
+one of those functions supplies the others.
 
-## What the ecosystem already provides
+Primary specifications, project documentation, and source code were preferred. The review was
+refreshed against material available on 2026-09-11. Capability statements are limited to
+documented behavior or inspected implementation. Absence from this review does not prove
+global novelty.
 
-MCP standardizes discovery and invocation, but deliberately leaves consequential security decisions to hosts and implementations. The 2026-07-28 protocol is stateless: requests carry protocol, identity, and capability metadata; method and tool names can be exposed in headers for routing and authorization; authorization adds issuer validation and moves toward Client ID Metadata Documents. These changes improve enforceability at HTTP boundaries but do not establish that a tool description, result, or requested action is trustworthy.[1]
+## Standards and integrity infrastructure
 
-MCP security guidance correctly treats tool descriptions and annotations as untrusted, forbids token passthrough, requires token audience validation, and emphasizes consent and least privilege.[2] These are necessary protocol and authorization controls. They do not answer whether a particular invocation is consistent with the user's objective or whether information flowed from an attacker-controlled source to a sensitive sink.
+### SLSA v1.2
 
-OpenAI's current guidance combines sandboxing, network policy, approvals, managed configuration, identities, and agent-native telemetry. Codex can export prompts, approvals, tool results, MCP use, and proxy decisions through OpenTelemetry.[3] OpenAI also describes prompt injection as a source-to-sink problem: dangerous behavior generally requires attacker influence plus a consequential action. It cautions that classifying text as malicious is not sufficient and recommends constraining impact even when manipulation succeeds.[4]
+SLSA v1.2 is the current approved specification. It separates Build and Source tracks. The
+Build track increases confidence in provenance existence, authenticity, accuracy, and build
+isolation. Provenance describes the builder, build process, external parameters, resolved
+dependencies, and digest-identified outputs. The Source track addresses how source revisions
+are created and controlled; full source provenance remains source-control-system specific.
 
-OWASP's 2025 LLM risks cover prompt injection, sensitive-information disclosure, supply chain, and excessive agency. The 2026 Agentic Top 10 extends these into goal hijack, tool misuse, identity abuse, agentic supply-chain failures, memory poisoning, insecure inter-agent communication, and untraceability.[5] The material is useful for threat enumeration and control design, but it is not an event schema or executable detection model.
+SLSA is deliberately not a kernel-observation format. A conforming provenance statement can
+identify the expected builder and inputs without enumerating every process, sensitive file
+access, or network connection that occurred. Build L3 hardening reduces opportunities for a
+build to influence its provenance, but does not turn declared provenance into a runtime trace.
+Runtime evidence therefore complements rather than replaces SLSA.
 
-MITRE ATT&CK remains applicable only at observable endpoints. For example, a tool invocation that sends data to a webhook can support T1567.004 only when the event shows the relevant exfiltration behavior; a suspicious string alone does not. Supply Chain Compromise (T1195) is defensible when an artifact or manifest changes unexpectedly and verification fails.[6] Agent-specific taxonomies should not be mechanically converted into ATT&CK mappings.
+Sources: [SLSA v1.2](https://slsa.dev/spec/v1.2/),
+[tracks](https://slsa.dev/spec/v1.2/tracks),
+[build requirements](https://slsa.dev/spec/v1.2/build-requirements), and
+[source requirements](https://slsa.dev/spec/v1.2/source-requirements).
 
-OpenTelemetry's GenAI semantic conventions now define tool call arguments, results, definitions, and tool types, while explicitly warning that arguments and results may contain sensitive information.[7] This supplies interoperable field names, not retention policy, trust labels, provenance integrity, or security decisions.
+### in-toto Attestation Framework and Runtime Trace
 
-SLSA 1.2 distinguishes provenance existence from authentic and unforgeable provenance. Its verification guidance is directly relevant to released artifacts, but runtime tool catalogs often lack equivalent attestations. Sigstore provides identity-bound signing and verification mechanisms; neither automatically models runtime catalog continuity.[8]
+The in-toto Attestation Framework supplies a Statement with digest-addressed subjects and a
+typed predicate. Authentication is normally provided by a DSSE envelope or Sigstore bundle.
+Consumers must authenticate the envelope before trusting the statement and use
+`predicateType`, not a media type, to select predicate semantics.
 
-## Public attack and defense research
+Runtime Trace v0.1 defines a monitor, monitored process, process/network/file-access logs, and
+optional timing metadata. It intentionally leaves process and network object formats
+monitor-specific. It also warns that asynchronous eBPF observation cannot atomically hash a
+file before use, so a recorded file digest has weaker TOCTOU properties than one obtained by a
+synchronous monitor.
 
-Research since 2025 demonstrates that instructions embedded in tool metadata can alter agent decisions without the poisoned tool itself being called. MCPTox evaluates this class across real tool schemas; broader MCP ecosystem research describes tool poisoning, puppet attacks, rug pulls, and malicious external resources.[9] MindGuard explores model-internal decision dependence for attribution, but its assumptions require access to attention signals that hosted models normally do not expose.[10]
+Runtime Trace is the appropriate interoperability envelope, but v0.1 does not define:
 
-Indirect prompt injection research repeatedly shows the same structural failure: untrusted retrieved content influences an agent that holds ambient authority. Consequences include credential disclosure, unauthorized tool composition, and external actions. Results vary substantially by model, task, and defense; no published detector should be treated as a complete prevention boundary.[11]
+- a canonical execution graph or process identity rule;
+- event ordering, loss accounting, or a completeness state;
+- a digest commitment to an external detailed event stream;
+- mandatory equality links among build ID, CI run, SLSA invocation, and trace;
+- replay resistance beyond producer-selected identity fields;
+- deterministic policy verdict semantics.
 
-The durable lesson is classical. Agents can become confused deputies when identity, intent, and authority are collapsed. Controls should bind each privileged action to an explicit policy decision and preserve evidence about the source, sink, authority, and catalog state that existed at that moment.
+These are extension points, not defects. The smallest compatible design is a Runtime Trace
+v0.1 predicate with a namespaced correlation extension, not a new top-level attestation family.
 
-## Three candidate theses
+Sources: [in-toto Attestation Framework](https://github.com/in-toto/attestation),
+[Statement v1](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md),
+[Envelope specification](https://github.com/in-toto/attestation/blob/main/spec/v1/envelope.md),
+and [Runtime Trace v0.1](https://github.com/in-toto/attestation/blob/main/spec/predicates/runtime-trace.md).
 
-| Candidate | Novelty | Defensive value | Technical depth | Maintainability | Daybreak Blue fit |
-| --- | --- | --- | --- | --- | --- |
-| A. Transparent MCP reverse proxy with argument signatures | Medium | High for HTTP MCP | High transport complexity | Medium; protocol churn is costly | Good |
-| B. Static MCP manifest linter and signer | Low-medium | Useful before deployment | Medium | High | Fair; misses runtime composition |
-| C. Provenance-aware source-to-sink decision monitor and replay ledger | High | High across transports/frameworks | High in correlation, integrity, and testing | High with a small core | Strong |
+### Sigstore, Cosign, and transparency
 
-Candidate A can enforce network policy, but transport termination and authorization quickly dominate the project. It also cannot infer origin trust unless hosts provide context. Candidate B addresses tool poisoning and rug pulls, but duplicates conventional signing workflows and cannot observe misuse of unchanged tools.
+Sigstore supplies identity-bound short-lived signing certificates, transparency services,
+trusted-root distribution, and client libraries. Cosign signs and verifies artifacts and
+in-toto attestations, including keyless OIDC workflows. A Sigstore bundle packages the
+signature and verification material needed for offline verification. Verification must
+constrain certificate identity and issuer; cryptographic validity alone is not authorization.
 
-Candidate C is selected. Its narrow thesis is:
+Rekor v1 is in maintenance mode. Rekor v2 uses tile-based logs and shard discovery through
+TUF-distributed signing configuration and trusted roots. This project should consume standard
+Sigstore bundles through maintained libraries, not hard-code a public log URL or implement
+transparency cryptography. A local lab may use an ephemeral key and offline verification;
+public keyless signing belongs in CI release jobs.
 
-> A small, deterministic decision-point engine can make agent/tool activity meaningfully auditable by binding normalized events to explicit trust labels, catalog digests, source-to-sink policy, redacted evidence, and a hash-chained replay ledger.
+Sources: [Cosign](https://github.com/sigstore/cosign),
+[Sigstore bundle format](https://docs.sigstore.dev/about/bundle/),
+[Cosign verification](https://docs.sigstore.dev/cosign/verifying/verify/),
+[Rekor](https://github.com/sigstore/rekor), and
+[Rekor v2](https://github.com/sigstore/rekor-tiles).
 
-The contribution is not another prompt-injection classifier. It is a security control plane with explicit evidence requirements. It can block policy violations before invocation when integrated inline; in observe-only deployments it produces detections, not prevention.
+### SPDX and CycloneDX
 
-## Initial vertical slice
+SPDX 3.0.1 includes a Build profile modeling build instances, inputs, outputs, tools, agents,
+and parent/child build relationships. CycloneDX 1.7 supports inventory, formulation workflows,
+declarations, claims, evidence, and attestation references. Both are useful for describing
+components and build formulation.
 
-The first slice accepts one versioned `tool_call.requested` event, validates and normalizes it, evaluates deterministic rules, emits an `allow`, `review`, or `deny` decision with redacted evidence, and appends the input and decision to a hash-chained JSONL ledger. Initial rules cover secret-like values in arguments and untrusted network destinations. Positive, negative, malformed-input, redaction, and ledger-tamper tests establish the claims.
+Neither standard by itself authenticates kernel observations or defines the event-loss and
+cross-attestation equality rules required here. Runtime evidence should reference SBOMs as
+materials or companion attestations rather than duplicate their inventory models.
 
-Deferred capabilities include natural-language prompt-injection classification, live OAuth termination, model introspection, autonomous remediation, and cross-host identity federation. Catalog continuity and multi-event correlation follow only after the slice is stable.
+Sources: [SPDX 3.0.1 Build profile](https://spdx.github.io/spdx-spec/v3.0.1/model/Build/Build/)
+and [CycloneDX 1.7](https://cyclonedx.org/docs/1.7/json/).
 
-## Sources
+## Linux observation substrate
 
-1. Model Context Protocol, "[The 2026-07-28 Specification](https://blog.modelcontextprotocol.io/posts/2026-07-28/)," 28 July 2026.
-2. Model Context Protocol, "[Authorization](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization)" and protocol security principles, accessed 11 September 2026.
-3. OpenAI, "[Running Codex safely at OpenAI](https://openai.com/index/running-codex-safely/)," 8 May 2026.
-4. OpenAI, "[Designing AI agents to resist prompt injection](https://openai.com/index/designing-agents-to-resist-prompt-injection/)," 11 March 2026.
-5. OWASP GenAI Security Project, "[LLM06:2025 Excessive Agency](https://genai.owasp.org/llmrisk/llm062025-excessive-agency/)" and "[Top 10 for Agentic Applications 2026](https://genai.owasp.org/download/52117/)," accessed 11 September 2026.
-6. MITRE ATT&CK, "[Exfiltration Over Web Service (T1567)](https://attack.mitre.org/techniques/T1567/)" and "[Supply Chain Compromise (T1195)](https://attack.mitre.org/techniques/T1195/)," versions current 11 September 2026.
-7. OpenTelemetry, "[Generative AI semantic attributes](https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/)," accessed 11 September 2026.
-8. SLSA, "[Specification 1.2](https://slsa.dev/spec/v1.2/)" and "[Build requirements](https://slsa.dev/spec/v1.2/build-requirements)," accessed 11 September 2026; Sigstore, "[Verifying signatures](https://docs.sigstore.dev/cosign/verifying/verify/)."
-9. Wang et al., "[MCPTox](https://ojs.aaai.org/index.php/AAAI/article/download/40895/44856)," AAAI 2026; Song et al., "[Beyond the Protocol](https://arxiv.org/abs/2506.02040)," 2025.
-10. Wang et al., "[MindGuard](https://arxiv.org/abs/2508.20412)," 2025 preprint.
-11. "[Securing Tool-Using AI Agents Against Injection and Authority Misuse](https://doi.org/10.3390/computation14050098)," Computation 14(5), 2026; "[A Framework for Formalizing LLM Agent Security](https://openreview.net/pdf?id=iQzd6qzIs5)," 2026 preprint.
+### eBPF, BTF, CO-RE, and cgroups
+
+eBPF provides verified programs attached to kernel hooks. BTF describes kernel and BPF types;
+CO-RE uses compiler relocation metadata plus running-kernel BTF to adapt one BPF object across
+compatible kernels. CO-RE improves portability but does not guarantee that a required hook,
+helper, LSM configuration, or semantic behavior exists.
+
+`BPF_MAP_TYPE_RINGBUF`, introduced in Linux 5.8, preserves reservation order across CPUs and
+supports variable-sized records. Reservation is non-blocking and fails when full. Every failed
+reservation relevant to a monitored build must therefore increment a counter included in final
+evidence. Buffer size and polling reduce loss but cannot justify treating unmeasured loss as
+zero.
+
+The current-cgroup helper is available from Linux 4.18. Cgroup v2 is the practical workload
+boundary, but cgroup ID alone is not a durable global identity: IDs can be reused and processes
+can move if the host permits it. The collector must bind cgroup ID to a build nonce, observed
+cgroup path/inode, monitoring interval, and host boot identity. Namespace IDs and process
+start time reduce PID ambiguity.
+
+BPF LSM can observe or enforce security hooks, but requires `CONFIG_BPF_LSM` and a kernel LSM
+configuration containing `bpf`. Stable tracepoints and LSM hooks are preferred over unstable
+kprobes. Initial collection should be selective:
+
+- successful process execution and exit for ancestry;
+- sensitive-path file opens selected by policy;
+- artifact write/rename events inside declared output roots;
+- IPv4/IPv6 socket connect attempts and outcomes;
+- credential or privilege transitions where stable hooks exist;
+- explicit sensor loss and lifecycle records.
+
+It should not stream every syscall. DNS names cannot be reliably inferred from `connect(2)`;
+kernel telemetry normally establishes only IP and port. Name evidence requires a separately
+identified resolver observation and must not be presented as kernel-established causality.
+
+Sources: Linux kernel documentation for [BTF](https://docs.kernel.org/bpf/btf.html),
+[libbpf CO-RE](https://docs.kernel.org/bpf/libbpf/libbpf_overview.html),
+[BPF LSM](https://docs.kernel.org/bpf/prog_lsm.html), and
+[ring buffers](https://docs.kernel.org/bpf/ringbuf.html).
+
+## Runtime-security implementations
+
+### Tetragon
+
+Tetragon provides eBPF-based process, file, network, capability, namespace, and Kubernetes
+observability with in-kernel filtering and optional enforcement. TracingPolicy is expressive,
+and executable integrity measurements are available on supported kernels. It solves much of
+selective, identity-aware kernel telemetry, but does not define an artifact/runtime/SLSA
+correlation contract or strict build verifier. It can be a future event-source adapter.
+
+Sources: [Tetragon overview](https://tetragon.io/docs/overview/) and
+[TracingPolicy reference](https://tetragon.io/docs/reference/tracing-policy/).
+
+### Tracee
+
+Tracee exposes broad Linux runtime events and detections using eBPF, with container context,
+filtering, signatures, and forensic output. Its event surface is broader than this project
+needs. A former Tracee GitHub Action demonstrated CI monitoring but is documented as an
+unmaintained demonstration. Tracee does not supply an artifact-to-runtime-to-SLSA verification
+contract. Source: [Tracee](https://github.com/aquasecurity/tracee).
+
+### Falco
+
+Falco evaluates kernel and plugin event streams against rules. Its modern eBPF driver, drop
+accounting, mature rule language, and ecosystem solve runtime detection well. Falco documents
+that it does not correlate events from different event sources. It does not construct
+artifact-bound build graphs or compose SLSA and Runtime Trace attestations.
+
+Sources: [Falco event sources](https://falco.org/docs/concepts/event-sources/),
+[kernel architecture](https://falco.org/docs/concepts/event-sources/kernel/architecture/), and
+[dropped events](https://falco.org/docs/concepts/event-sources/kernel/dropped-events/).
+
+### cicd-sensor
+
+`cicd-sensor` is the closest implementation and materially narrows any novelty claim. It is
+an eBPF CI/CD sensor for GitHub Actions and GitLab CI. It records process ancestry, file and
+network observations, runs correlation rules, produces reports, counts ring-buffer drops, and
+generates a predicate based on Runtime Trace v0.1. Its documentation recommends signing the
+predicate later with GitHub Artifact Attestations.
+
+Source inspection on 2026-09-11 found that its v1alpha1 predicate intentionally aggregates
+detections and network/domain observations. It omits per-event process trees and dedicated
+file access. Ring-buffer loss is an agent-wide audit signal and is not represented in the
+predicate as a verifier-enforced completeness state. The predicate is generated separately
+from the outer artifact subject and does not itself require equality with a SLSA invocation.
+
+This project must not claim novelty for CI eBPF collection, ancestry-aware detection, Runtime
+Trace predicate generation, or runtime reports. The research gap is a portable deterministic
+verifier that treats evidence completeness as a security property and proves a closed set of
+digest and identity equalities across artifact, detailed evidence, Runtime Trace, SLSA
+provenance, policy, and signer identity.
+
+Sources: [cicd-sensor](https://github.com/cicd-sensor/cicd-sensor) and its
+[attestation documentation](https://github.com/cicd-sensor/cicd-sensor/blob/main/docs/user-guide/attestation-predicate.md).
+
+## CI platforms and repository controls
+
+GitHub artifact attestations use Sigstore and bind artifact digests to workflow, repository,
+commit, and OIDC identity. GitHub warns that attestations do not prove an artifact is secure.
+It recommends least-privilege tokens, full-SHA action pinning, OIDC, and isolation of
+untrusted pull-request code. GitHub-hosted runners do not scan downloaded dependencies for
+malicious behavior.
+
+GitLab documents that shell executors and privileged containers can expose runner hosts and
+cross-job secrets. It recommends isolated ephemeral runners for privileged jobs, network
+segmentation, non-root containers, capability reduction, and OIDC ID tokens.
+
+The defensible sensor deployment is a host/VM-owned monitor outside the untrusted build
+cgroup, with each build in a fresh cgroup or disposable VM. A sensor started by the build
+itself cannot establish strong provenance against that build.
+
+Sources: GitHub [secure use](https://docs.github.com/en/actions/reference/security/secure-use),
+[artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations),
+and [compromised runners](https://docs.github.com/en/actions/concepts/security/compromised-runners);
+GitLab [runner security](https://docs.gitlab.com/runner/security/) and
+[OIDC](https://docs.gitlab.com/ci/secrets/id_token_authentication/).
+
+OpenSSF Scorecard checks pinned dependencies, token permissions, dangerous workflows, branch
+protection, dependency updates, fuzzing, SAST, and signed releases. CISA guidance calls for
+hardened build environments, minimized approved internet access, build-chain monitoring,
+audit logs, SBOM use, and artifact integrity. These controls protect this repository but do
+not replace per-build runtime evidence.
+
+Sources: [OpenSSF Scorecard](https://github.com/ossf/scorecard) and CISA/NSA/ESF
+[developer guidance](https://www.cisa.gov/sites/default/files/2023-12/ESF_SECURING_THE_SOFTWARE_SUPPLY_CHAIN_DEVELOPERS.pdf).
+
+## Conclusion
+
+The broad thesis is already partially implemented. Runtime collection, ancestry-aware CI
+detection, Runtime Trace production, and signing infrastructure exist. The defensible
+narrowed hypothesis is:
+
+> A loss-aware correlation and verification profile can cryptographically bind a build
+> artifact to one detailed runtime evidence stream, SLSA provenance, CI execution identity,
+> policy version, and signer authorization, while refusing a clean verdict when any required
+> equality or completeness condition is unproven.
+
+This is a hypothesis to test, not a novelty claim. The first vertical slice validates the
+correlation contract with synthetic evidence before privileged sensor engineering expands.

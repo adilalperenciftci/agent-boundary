@@ -1,13 +1,58 @@
-# References and design influences
+# References
 
-- Model Context Protocol, [2026-07-28 specification announcement](https://blog.modelcontextprotocol.io/posts/2026-07-28/). Influenced stateless adapter assumptions and header-addressable policy boundaries.
-- Model Context Protocol, [Authorization specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization). Influenced audience binding, token-passthrough non-goals, and separation from OAuth enforcement.
-- OpenAI, [Running Codex safely at OpenAI](https://openai.com/index/running-codex-safely/). Influenced agent-native event coverage and OTel interoperability.
-- OpenAI, [Designing AI agents to resist prompt injection](https://openai.com/index/designing-agents-to-resist-prompt-injection/). Influenced source-to-sink correlation and rejection of classifier-only prevention.
-- OWASP, [Top 10 for Agentic Applications 2026](https://genai.owasp.org/download/52117/) and [LLM06 Excessive Agency](https://genai.owasp.org/llmrisk/llm062025-excessive-agency/). Influenced threat categories and least-authority assumptions.
-- MITRE ATT&CK, [T1567 Exfiltration Over Web Service](https://attack.mitre.org/techniques/T1567/) and [T1195 Supply Chain Compromise](https://attack.mitre.org/techniques/T1195/). Used only where observable behavior supports mapping.
-- OpenTelemetry, [GenAI semantic attributes](https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/). Influenced field interoperability and content-retention warnings.
-- SLSA, [Specification 1.2](https://slsa.dev/spec/v1.2/) and [artifact verification](https://slsa.dev/spec/v1.2/verifying-artifacts). Influenced the distinction between presence, integrity, authenticity, and verification of provenance.
-- Wang et al., [MCPTox](https://ojs.aaai.org/index.php/AAAI/article/download/40895/44856), AAAI 2026. Evidence for metadata-level tool poisoning.
-- Song et al., [Beyond the Protocol](https://arxiv.org/abs/2506.02040), 2025. Influenced catalog continuity and rug-pull roadmap.
-- Wang et al., [MindGuard](https://arxiv.org/abs/2508.20412), 2025 preprint. Informed decision provenance; model-internal attention dependence is deliberately not adopted.
+Primary specifications and project documentation are listed first. Access was verified on
+2026-09-11 unless otherwise noted.
+
+## Provenance and attestations
+
+1. SLSA. [Specification v1.2](https://slsa.dev/spec/v1.2/).
+2. SLSA. [Build requirements](https://slsa.dev/spec/v1.2/build-requirements).
+3. SLSA. [Build provenance](https://slsa.dev/spec/v1.2/build-provenance).
+4. SLSA. [Source requirements](https://slsa.dev/spec/v1.2/source-requirements).
+5. in-toto. [Attestation Framework](https://github.com/in-toto/attestation).
+6. in-toto. [Statement v1](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md).
+7. in-toto. [Envelope specification](https://github.com/in-toto/attestation/blob/main/spec/v1/envelope.md).
+8. in-toto. [Runtime Trace v0.1](https://github.com/in-toto/attestation/blob/main/spec/predicates/runtime-trace.md).
+9. Sigstore. [Cosign](https://github.com/sigstore/cosign).
+10. Sigstore. [Bundle format](https://docs.sigstore.dev/about/bundle/).
+11. Sigstore. [Verification](https://docs.sigstore.dev/cosign/verifying/verify/).
+12. Sigstore. [Rekor v1](https://github.com/sigstore/rekor).
+13. Sigstore. [Rekor v2](https://github.com/sigstore/rekor-tiles).
+14. SPDX. [Specification 3.0.1](https://spdx.github.io/spdx-spec/v3.0.1/).
+15. SPDX. [Build profile](https://spdx.github.io/spdx-spec/v3.0.1/model/Build/Build/).
+16. CycloneDX. [Specification 1.7](https://cyclonedx.org/docs/1.7/json/).
+
+## Linux kernel and eBPF
+
+17. Linux kernel. [BPF Type Format](https://docs.kernel.org/bpf/btf.html).
+18. Linux kernel. [libbpf and CO-RE](https://docs.kernel.org/bpf/libbpf/libbpf_overview.html).
+19. Linux kernel. [BPF ring buffer](https://docs.kernel.org/bpf/ringbuf.html).
+20. Linux kernel. [BPF LSM](https://docs.kernel.org/bpf/prog_lsm.html).
+21. Linux kernel. [Cgroup storage](https://docs.kernel.org/bpf/map_cgroup_storage.html).
+22. libbpf. [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap).
+23. Cilium. [`cilium/ebpf`](https://github.com/cilium/ebpf).
+24. Aya. [Aya book](https://aya-rs.dev/book/).
+
+## Runtime and CI security
+
+25. Cilium. [Tetragon](https://tetragon.io/docs/).
+26. Aqua Security. [Tracee](https://github.com/aquasecurity/tracee).
+27. Falco. [Event sources](https://falco.org/docs/concepts/event-sources/).
+28. Falco. [Dropped events](https://falco.org/docs/concepts/event-sources/kernel/dropped-events/).
+29. cicd-sensor. [Repository](https://github.com/cicd-sensor/cicd-sensor).
+30. cicd-sensor. [Runtime Trace predicate](https://github.com/cicd-sensor/cicd-sensor/blob/main/docs/user-guide/attestation-predicate.md).
+31. GitHub. [Secure use](https://docs.github.com/en/actions/reference/security/secure-use).
+32. GitHub. [Artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations).
+33. GitHub. [Compromised runners](https://docs.github.com/en/actions/concepts/security/compromised-runners).
+34. GitLab. [Runner security](https://docs.gitlab.com/runner/security/).
+35. GitLab. [OIDC ID tokens](https://docs.gitlab.com/ci/secrets/id_token_authentication/).
+36. OpenSSF. [Scorecard](https://github.com/ossf/scorecard).
+37. OpenSSF. [Scorecard checks](https://github.com/ossf/scorecard/blob/main/docs/checks.md).
+38. CISA/NSA/ESF. [Recommended Practices for Developers](https://www.cisa.gov/sites/default/files/2023-12/ESF_SECURING_THE_SOFTWARE_SUPPLY_CHAIN_DEVELOPERS.pdf).
+39. CISA/NSA/ESF. [Managing OSS and SBOMs](https://www.cisa.gov/sites/default/files/2024-08/ESF_SECURING_THE_SOFTWARE_SUPPLY_CHAIN%20RECOMMENDED%20PRACTICES%20FOR%20MANAGING%20OPEN%20SOURCE%20SOFTWARE%20AND%20SOFTWARE%20BILL%20OF%20MATERIALS_508.pdf).
+
+## Research-use note
+
+The comparison in `docs/research/` reflects documented and inspected capabilities, not a
+certification of any listed project. Upstream behavior and schemas can change; integrations
+must pin and re-review exact versions.
