@@ -12,6 +12,11 @@ v0.2 fixes this by labelling each parent `observed`, `unobserved`, or `none`; un
 graph assertions cover the distinction. This improves claim precision but does not recover missing
 ancestry or defend against a privileged hostile host.
 
+A final graph review found the edge label still said `observed_exec_parent` when its source node
+was absent, contradicting the node label. Graph construction now assigns
+`unobserved_exec_parent` after collecting all nodes, with positive, negative, and privileged
+regressions. No missing ancestor is synthesized.
+
 ## Supply-chain reviewer
 
 Interim review found that SLSA `builder.id` was required but not authorized, while repository

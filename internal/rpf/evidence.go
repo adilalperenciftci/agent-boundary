@@ -182,6 +182,14 @@ func BuildGraph(events []Event) (ExecutionGraph, error) {
 		nodeMap[key] = node
 		nodes = append(nodes, node)
 	}
+	for index := range edges {
+		if edges[index].Kind != "observed_exec_parent" {
+			continue
+		}
+		if _, observed := nodeMap[edges[index].From]; !observed {
+			edges[index].Kind = "unobserved_exec_parent"
+		}
+	}
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ProcessKey < nodes[j].ProcessKey })
 	sort.Slice(edges, func(i, j int) bool { return edges[i].Sequence < edges[j].Sequence })
 	return ExecutionGraph{SchemaVersion: "0.2", BuildID: events[0].Build.BuildID, Nodes: nodes, Edges: edges}, nil

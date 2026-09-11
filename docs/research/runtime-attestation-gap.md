@@ -73,6 +73,7 @@ association with an output path. Neither proves semantic causation or that every
 came from that process.
 
 Edges must therefore state observation semantics such as `observed_exec_parent`,
+`unobserved_exec_parent`,
 `opened_for_write`, `renamed_to_output`, and `connected_to`, never generic `caused`.
 
 ### Replay resistance

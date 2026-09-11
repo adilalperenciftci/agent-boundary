@@ -122,6 +122,9 @@ func TestBaselineAssemblesAndAllows(t *testing.T) {
 			t.Fatalf("observed ancestry was not labelled: %#v", node)
 		}
 	}
+	if bundle.Graph.Edges[0].Kind != "observed_exec_parent" {
+		t.Fatalf("observed parent edge was not labelled: %#v", bundle.Graph.Edges[0])
+	}
 }
 
 func TestGraphLabelsUnobservedParent(t *testing.T) {
@@ -136,6 +139,9 @@ func TestGraphLabelsUnobservedParent(t *testing.T) {
 		if node.ProcessKey == "sha256:compiler" {
 			if node.ParentObservation != "unobserved" {
 				t.Fatalf("unobserved parent was not explicit: %#v", node)
+			}
+			if bundle.Graph.Edges[0].Kind != "unobserved_exec_parent" {
+				t.Fatalf("unobserved parent edge was not labelled: %#v", bundle.Graph.Edges[0])
 			}
 			return
 		}
