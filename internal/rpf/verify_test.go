@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func fixtureInputs(t *testing.T, mutate func(*[]Event)) Inputs {
+func fixtureInputs(t testing.TB, mutate func(*[]Event)) Inputs {
 	t.Helper()
 	artifact := []byte("deterministic fixture artifact\n")
 	build := BuildScope{BuildID: "bld_fixture_001", RunID: "local-run-001", BootID: "4f25a5e2-3a0d-4bb0-99dd-a4e4b6c2a100", CgroupID: 99122, CgroupPathHash: "sha256:cgroup"}
@@ -52,6 +52,50 @@ func fixtureInputs(t *testing.T, mutate func(*[]Event)) Inputs {
 		t.Fatal(err)
 	}
 	return Inputs{ArtifactBytes: artifact, ArtifactName: "artifact", EventBytes: stream.Bytes(), ProvenanceBytes: provenanceBytes, PolicyBytes: policyBytes}
+}
+
+func BenchmarkParseEventStream(b *testing.B) {
+	inputs := fixtureInputs(b, nil)
+	b.ReportAllocs()
+	b.SetBytes(int64(len(inputs.EventBytes)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := ParseEventStream(inputs.EventBytes); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ReportMetric(5, "events")
+	b.ReportMetric(float64(len(inputs.EventBytes)), "event_bytes")
+}
+
+func BenchmarkAssemble(b *testing.B) {
+	inputs := fixtureInputs(b, nil)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := Assemble(inputs); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ReportMetric(5, "events")
+	b.ReportMetric(float64(len(inputs.EventBytes)), "event_bytes")
+}
+
+func BenchmarkVerify(b *testing.B) {
+	inputs := fixtureInputs(b, nil)
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := Verify(inputs, bundle); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ReportMetric(5, "events")
+	b.ReportMetric(float64(len(inputs.EventBytes)), "event_bytes")
 }
 
 func TestBaselineAssemblesAndAllows(t *testing.T) {
