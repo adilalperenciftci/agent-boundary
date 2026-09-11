@@ -6,7 +6,9 @@ identify monitor and monitored run. The namespaced `runtime-provenance/v0.1` ext
 to the evidence manifest, execution graph, SLSA provenance, policy, source, build/run identity,
 and completeness.
 
-The current fixture slice emits an unsigned Statement. It is not accepted as authenticated
-production evidence. A later strict verifier will require a Sigstore bundle and authorized
-signer/OIDC issuer. Detailed event bytes remain external and must be supplied by digest for
-forensic replay.
+Both synthetic fixtures and the privileged Linux lab emit an unsigned Statement. The Linux lab
+now composes it from real canonical kernel evidence, a final artifact hash, and an explicitly
+`unsigned-local-fixture` SLSA statement, then verifies all commitments. It is not accepted as
+authenticated production evidence. A later strict verifier will require a Sigstore bundle and
+authorized signer/OIDC issuer. Detailed event bytes remain external and must be supplied by
+digest for forensic replay.

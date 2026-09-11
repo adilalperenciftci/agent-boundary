@@ -22,6 +22,10 @@ the same evidence path. The second collector must fail and the file digest must 
 It also executes a target-cgroup shell that opens an absolute synthetic artifact for writing,
 requires the final digest to match the file, reconstructs both output-open and artifact edges,
 and requires every implemented loss counter to be zero.
+The same test creates full-structure unsigned local SLSA provenance, assembles Runtime Trace and
+manifest commitments, requires an `ALLOW`, modifies the artifact bytes, and requires verifier
+exit status 3 with `RPF-ARTIFACT-001`. This demonstrates correlation and tamper rejection, not
+provenance authenticity or signature verification.
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.

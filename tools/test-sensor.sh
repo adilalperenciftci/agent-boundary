@@ -7,6 +7,9 @@ output=${3:-build/out/sensor-test.jsonl}
 validator=${4:-build/out/rpf}
 graph=${5:-build/out/sensor-test-graph.json}
 artifact=${6:-/src/build/out/sensor-test-artifact.txt}
+provenance=build/out/sensor-test-provenance.json
+bundle=build/out/sensor-test-bundle
+policy=lab/kernel/policy.json
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
 fi
@@ -22,6 +25,11 @@ cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' '
 rm -f "$output"
 rm -f "$graph"
 rm -f "$artifact"
+rm -f "$provenance"
+if [ -d "$bundle" ]; then
+  rm -f "$bundle/execution-graph.json" "$bundle/evidence-manifest.json" "$bundle/runtime-trace.json"
+  rmdir "$bundle"
+fi
 
 status=0
 timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" \
@@ -61,6 +69,25 @@ grep -q '"executable":"/bin/echo"' "$graph"
 grep -q '"kind":"observed_exec_parent"' "$graph"
 grep -q '"kind":"file_open_output"' "$graph"
 grep -q '"kind":"artifact_finalized"' "$graph"
+"$validator" create-local-provenance --artifact "$artifact" --events "$output" \
+  --repository https://example.test/agent-boundary --revision 1111111111111111111111111111111111111111 \
+  --output "$provenance"
+"$validator" assemble --artifact "$artifact" --events "$output" --provenance "$provenance" \
+  --policy "$policy" --output "$bundle"
+"$validator" verify-fixture --artifact "$artifact" --events "$output" --provenance "$provenance" \
+  --policy "$policy" --bundle "$bundle"
+grep -q 'https://in-toto.io/attestation/runtime-trace/v0.1' "$bundle/runtime-trace.json"
+original=$artifact.original
+cp "$artifact" "$original"
+printf substituted >> "$artifact"
+tamper_status=0
+"$validator" verify-fixture --artifact "$artifact" --events "$output" --provenance "$provenance" \
+  --policy "$policy" --bundle "$bundle" || tamper_status=$?
+mv "$original" "$artifact"
+if [ "$tamper_status" -ne 3 ]; then
+  echo "artifact substitution did not produce verifier REJECT" >&2
+  exit 1
+fi
 before=$(sha256sum "$output")
 if "$binary" --object "$object" --cgroup-id "$cgroup_id" \
   --build-id rpf-sensor-smoke --run-id local-container-smoke --boot-id "$boot_id" \

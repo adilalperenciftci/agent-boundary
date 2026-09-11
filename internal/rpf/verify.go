@@ -222,7 +222,43 @@ func provenanceIdentity(statement Statement) (Correlation, error) {
 	if identity.BuildID == "" || identity.RunIdentity.RunID == "" || identity.Source.Revision == "" {
 		return Correlation{}, errors.New("SLSA build identity is incomplete")
 	}
+	buildType, _ := rawDefinition["buildType"].(string)
+	external, externalOK := rawDefinition["externalParameters"].(map[string]any)
+	resolved, resolvedOK := rawDefinition["resolvedDependencies"].([]any)
+	runDetails, runOK := statement.Predicate["runDetails"].(map[string]any)
+	if buildType == "" || !externalOK || !resolvedOK || !runOK {
+		return Correlation{}, errors.New("SLSA provenance v1 structure is incomplete")
+	}
+	if external["repository"] != identity.Source.Repository || external["revision"] != identity.Source.Revision {
+		return Correlation{}, errors.New("SLSA external parameters conflict with build identity")
+	}
+	if !resolvedSourceMatches(resolved, identity.Source) {
+		return Correlation{}, errors.New("SLSA resolved dependencies omit the correlated source revision")
+	}
+	builder, builderOK := runDetails["builder"].(map[string]any)
+	metadata, metadataOK := runDetails["metadata"].(map[string]any)
+	builderID, _ := builder["id"].(string)
+	invocationID, _ := metadata["invocationId"].(string)
+	startedOn, _ := metadata["startedOn"].(string)
+	finishedOn, _ := metadata["finishedOn"].(string)
+	if !builderOK || !metadataOK || builderID == "" || invocationID != identity.RunIdentity.RunID || startedOn == "" || finishedOn == "" {
+		return Correlation{}, errors.New("SLSA run details conflict with build identity")
+	}
 	return identity, nil
+}
+
+func resolvedSourceMatches(dependencies []any, source SourceIdentity) bool {
+	for _, raw := range dependencies {
+		dependency, ok := raw.(map[string]any)
+		if !ok || dependency["uri"] != source.Repository {
+			continue
+		}
+		digest, ok := dependency["digest"].(map[string]any)
+		if ok && digest["gitCommit"] == source.Revision {
+			return true
+		}
+	}
+	return false
 }
 
 func lossFromFinalEvent(event Event) Loss {

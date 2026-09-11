@@ -5,13 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/adilalperenciftci/agent-boundary/internal/rpf"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		fail("usage: rpf <assemble|graph-events|validate-events|verify-fixture> [options]")
+		fail("usage: rpf <assemble|create-local-provenance|graph-events|validate-events|verify-fixture> [options]")
 	}
 	switch os.Args[1] {
 	case "assemble":
@@ -22,9 +23,46 @@ func main() {
 		validateEvents(os.Args[2:])
 	case "graph-events":
 		graphEvents(os.Args[2:])
+	case "create-local-provenance":
+		createLocalProvenance(os.Args[2:])
 	default:
 		fail("unknown command %q", os.Args[1])
 	}
+}
+
+func createLocalProvenance(arguments []string) {
+	set := flag.NewFlagSet("create-local-provenance", flag.ContinueOnError)
+	artifactPath := set.String("artifact", "", "artifact file")
+	eventPath := set.String("events", "", "canonical event JSONL")
+	repository := set.String("repository", "", "source repository URI")
+	revision := set.String("revision", "", "source revision")
+	outputPath := set.String("output", "", "new unsigned local provenance statement")
+	if err := set.Parse(arguments); err != nil {
+		fail("%v", err)
+	}
+	if *artifactPath == "" || *eventPath == "" || *repository == "" || *revision == "" || *outputPath == "" {
+		fail("all create-local-provenance options are required")
+	}
+	artifact, err := os.ReadFile(*artifactPath)
+	if err != nil {
+		fail("read artifact: %v", err)
+	}
+	raw, err := os.ReadFile(*eventPath)
+	if err != nil {
+		fail("read events: %v", err)
+	}
+	events, err := rpf.ParseEventStream(raw)
+	if err != nil {
+		fail("validate events: %v", err)
+	}
+	statement, err := rpf.CreateLocalFixtureProvenance(filepath.Base(*artifactPath), artifact, events, *repository, *revision)
+	if err != nil {
+		fail("create local provenance: %v", err)
+	}
+	if err := rpf.WriteCanonicalExclusive(*outputPath, statement); err != nil {
+		fail("write local provenance: %v", err)
+	}
+	printJSON(map[string]any{"written": true, "output": *outputPath, "assurance": "unsigned-local-fixture"})
 }
 
 func graphEvents(arguments []string) {

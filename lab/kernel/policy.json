@@ -1,0 +1,1 @@
+{"allowed_executables":["/bin/echo","/bin/sh","/usr/bin/id"],"allowed_network_destinations":[],"expected_provider":"local","forbidden_sensitive_categories":["synthetic_credential"],"incomplete_decision":"REJECT","schema_version":"0.1"}

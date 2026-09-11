@@ -75,7 +75,8 @@ access and localhost egress; those paths must reject.
 The privileged sensor smoke test requires Docker on a Linux kernel with cgroup v2, BTF, tracefs,
 and BPF loading privilege. Run `./tools/kernel-lab.sh`; it builds the checked-in lab image and
 requires two expected exec records, a valid canonical chain, overwrite refusal, and a finalized
-zero-loss record. See
+zero-loss record. It then creates explicitly unsigned local SLSA v1 provenance, assembles the
+Runtime Trace bundle, requires `ALLOW`, substitutes the artifact, and requires `REJECT`. See
 [kernel support](docs/kernel-support.md) for exact limits.
 
 ## Intended architecture

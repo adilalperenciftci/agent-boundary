@@ -40,12 +40,7 @@ func fixtureInputs(t *testing.T, mutate func(*[]Event)) Inputs {
 		stream.Write(raw)
 		stream.WriteByte('\n')
 	}
-	identity := Correlation{BuildID: build.BuildID, RunIdentity: RunIdentity{Provider: "local", RunID: build.RunID, Attempt: 1}, Source: SourceIdentity{Repository: "https://example.test/repo", Revision: "1111111111111111111111111111111111111111"}}
-	identityMap, err := toMap(identity)
-	if err != nil {
-		t.Fatal(err)
-	}
-	provenance := Statement{Type: StatementType, Subject: []Subject{{Name: "artifact", Digest: map[string]string{"sha256": Digest(artifact)}}}, PredicateType: SLSAPredicate, Predicate: map[string]any{"buildDefinition": map[string]any{"internalParameters": map[string]any{BuildIdentityKey: identityMap}}}}
+	provenance, err := CreateLocalFixtureProvenance("artifact", artifact, events, "https://example.test/repo", "1111111111111111111111111111111111111111")
 	provenanceBytes, err := canonical(provenance)
 	if err != nil {
 		t.Fatal(err)
@@ -111,6 +106,54 @@ func TestEventLossCannotAllow(t *testing.T) {
 	}
 	if decision.Decision != "REJECT" || decision.Completeness != "incomplete" {
 		t.Fatalf("loss was accepted: %#v", decision)
+	}
+}
+
+func TestMissingCorrelationLossCounterCannotAllow(t *testing.T) {
+	inputs := fixtureInputs(t, func(events *[]Event) {
+		delete((*events)[len(*events)-1].Resource, "kernel_correlation")
+	})
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := Verify(inputs, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Decision != "REJECT" || decision.Completeness != "incomplete" {
+		t.Fatalf("missing loss counter was accepted: %#v", decision)
+	}
+}
+
+func TestProvenanceInternalAndExternalRevisionConflictFails(t *testing.T) {
+	inputs := fixtureInputs(t, nil)
+	statement, err := decodeStatement(inputs.ProvenanceBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := statement.Predicate["buildDefinition"].(map[string]any)
+	definition["externalParameters"].(map[string]any)["revision"] = "2222222222222222222222222222222222222222"
+	inputs.ProvenanceBytes, err = canonical(statement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Assemble(inputs); err == nil {
+		t.Fatal("conflicting source revisions were accepted")
+	}
+}
+
+func TestRuntimeEvidenceAndProvenanceBuildReplayFails(t *testing.T) {
+	inputs := fixtureInputs(t, nil)
+	replayed := fixtureInputs(t, func(events *[]Event) {
+		for index := range *events {
+			(*events)[index].Build.BuildID = "replayed-build"
+			(*events)[index].Build.RunID = "replayed-run"
+		}
+	})
+	inputs.ProvenanceBytes = replayed.ProvenanceBytes
+	if _, err := Assemble(inputs); err == nil {
+		t.Fatal("provenance from another build was accepted")
 	}
 }
 
