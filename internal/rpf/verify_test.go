@@ -46,7 +46,7 @@ func fixtureInputs(t testing.TB, mutate func(*[]Event)) Inputs {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policy := Policy{SchemaVersion: "0.1", AllowedBuilderIDs: []string{LocalBuilderID}, AllowedRepositories: []string{"https://example.test/repo"}, AllowedExecutables: []string{"/bin/sh", "/usr/bin/cc"}, AllowedNetworkDestinations: []string{"127.0.0.1:8080"}, ForbiddenSensitiveCategories: []string{"synthetic_credential"}, ExpectedProvider: "local", IncompleteDecision: "REJECT"}
+	policy := Policy{SchemaVersion: "0.1", AllowedBuilderIDs: []string{LocalBuilderID}, AllowedArtifactProducers: []string{"/usr/bin/cc"}, AllowedRepositories: []string{"https://example.test/repo"}, AllowedExecutables: []string{"/bin/sh", "/usr/bin/cc"}, AllowedNetworkDestinations: []string{"127.0.0.1:8080"}, ForbiddenSensitiveCategories: []string{"synthetic_credential"}, ExpectedProvider: "local", IncompleteDecision: "REJECT"}
 	policyBytes, err := canonical(policy)
 	if err != nil {
 		t.Fatal(err)
@@ -362,6 +362,27 @@ func TestExpectedNetworkAccessAllows(t *testing.T) {
 	}
 	if decision.Decision != "ALLOW" || len(decision.Reasons) != 0 {
 		t.Fatalf("expected network access produced a finding: %#v", decision)
+	}
+}
+
+func TestUnauthorizedArtifactProducerRejects(t *testing.T) {
+	inputs := fixtureInputs(t, func(events *[]Event) {
+		for index := range *events {
+			if (*events)[index].Process != nil && (*events)[index].Process.ProcessKey == "sha256:compiler" {
+				(*events)[index].Process.Executable.Path = "/tmp/renamed-cc"
+			}
+		}
+	})
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := Verify(inputs, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Decision != "REJECT" || !hasReason(decision, "RPF-ARTIFACT-PRODUCER-001") {
+		t.Fatalf("unauthorized artifact producer was accepted: %#v", decision)
 	}
 }
 

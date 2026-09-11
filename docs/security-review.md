@@ -21,6 +21,15 @@ correlation identity and requires exact policy allowlists for builder and reposi
 tests require `RPF-BUILDER-001` and `RPF-SOURCE-001` rejections. This does not establish OIDC
 workload identity, source VSA validation, or transparency freshness.
 
+## Detection engineer
+
+Interim review found that artifact-producer identity was present in evidence and graph edges but
+had no dedicated policy control; the general executable rule could produce only `REVIEW`. Policy
+now requires an exact artifact-producer allowlist and emits `RPF-ARTIFACT-PRODUCER-001` with
+`REJECT` for any other producer. A regression uses a consistently renamed producer so the finding
+is semantic to artifact finalization, not a conflicting graph identity. Exact path identity remains
+representation-sensitive and does not substitute for content/package identity.
+
 ## Controlled malware-behavior experiments
 
 MBE-001 emulates a synthetic credential-file read, child execution, artifact staging, an

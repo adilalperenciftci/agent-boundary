@@ -325,6 +325,10 @@ func behaviorReasons(events []Event, policy Policy) []Reason {
 			if category == "" || slices.Contains(policy.ForbiddenSensitiveCategories, category) {
 				reasons = append(reasons, Reason{Code: "RPF-SENSITIVE-001", Effect: "REJECT", Message: "forbidden sensitive-path category was accessed", Sequence: event.Sequence})
 			}
+		case "artifact_finalized":
+			if event.Process == nil || !slices.Contains(policy.AllowedArtifactProducers, event.Process.Executable.Path) {
+				reasons = append(reasons, Reason{Code: "RPF-ARTIFACT-PRODUCER-001", Effect: "REJECT", Message: "artifact-producing executable is not authorized by policy", Sequence: event.Sequence})
+			}
 		}
 	}
 	return reasons

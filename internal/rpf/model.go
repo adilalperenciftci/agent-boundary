@@ -170,6 +170,7 @@ type Correlation struct {
 type Policy struct {
 	SchemaVersion                string   `json:"schema_version"`
 	AllowedBuilderIDs            []string `json:"allowed_builder_ids"`
+	AllowedArtifactProducers     []string `json:"allowed_artifact_producers"`
 	AllowedRepositories          []string `json:"allowed_repositories"`
 	AllowedExecutables           []string `json:"allowed_executables"`
 	AllowedNetworkDestinations   []string `json:"allowed_network_destinations"`
