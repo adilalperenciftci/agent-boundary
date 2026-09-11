@@ -40,6 +40,11 @@ zero, and final `REJECT` containing both sensitive-access and egress reasons. Th
 server have unit tests rejecting non-loopback configuration. This is behavior emulation, not
 malware execution or a field detection-rate benchmark.
 
+The benign privileged baseline separately contacts `127.0.0.1:18082`, which is declared in the
+versioned policy. Its exec and connect edges must be present while the final decision remains
+`ALLOW` with no reasons. This is a controlled non-detection case proving that the network hook
+does not make every observed connection suspicious.
+
 The same script runs EXP-001 twice with byte-identical authorization claims: explicitly vulnerable
 mode must grant the synthetic marker and patched mode must deny it. Both proof processes and
 loopback attempts must appear in telemetry. This is a complete local exploit/patch path, while the

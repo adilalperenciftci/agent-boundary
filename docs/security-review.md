@@ -44,6 +44,10 @@ sensitive-path finding. Telemetry observed the renamed executable, detection emi
 `RPF-SENSITIVE-001`, and policy remained `REJECT`. This tests one representation change only and
 does not establish general evasion resistance.
 
+The same numeric-connect signal is exercised negatively and positively: undeclared ports 18080
+and 18081 produce `RPF-EGRESS-001`, while policy-declared port 18082 remains finding-free in the
+benign baseline. This validates exact endpoint semantics only, not domain, proxy, or IPv6 handling.
+
 ## Exploit-to-telemetry correlation
 
 For MBE-001, the non-exploit chain is: fixture shell input → successful `openat` → kernel

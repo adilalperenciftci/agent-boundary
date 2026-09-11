@@ -7,6 +7,10 @@ output=${3:-build/out/sensor-test.jsonl}
 validator=${4:-build/out/rpf}
 graph=${5:-build/out/sensor-test-graph.json}
 artifact=${6:-/src/build/out/sensor-test-artifact.txt}
+callback=/src/build/out/rpf-local-connect
+mock=/src/build/out/rpf-mock-server
+ready=build/out/sensor-test-mock.ready
+mock_pid=
 provenance=build/out/sensor-test-provenance.json
 bundle=build/out/sensor-test-bundle
 policy=lab/kernel/policy.json
@@ -16,6 +20,10 @@ fi
 fixture_cgroup=/sys/fs/cgroup/rpf-sensor-test-$$
 mkdir "$fixture_cgroup"
 cleanup() {
+  if [ -n "$mock_pid" ]; then
+    kill "$mock_pid" 2>/dev/null || true
+  fi
+  rm -f "$ready"
   rmdir "$fixture_cgroup" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
@@ -25,6 +33,7 @@ cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' '
 rm -f "$output"
 rm -f "$graph"
 rm -f "$artifact"
+rm -f "$ready"
 rm -f "$provenance"
 if [ -d "$bundle" ]; then
   rm -f "$bundle/execution-graph.json" "$bundle/evidence-manifest.json" "$bundle/runtime-trace.json"
@@ -37,10 +46,22 @@ timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" --c
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$output" &
 sensor_pid=$!
 sleep 1
+"$mock" --listen 127.0.0.1:18082 --ready-file "$ready" &
+mock_pid=$!
+attempt=0
+while [ ! -f "$ready" ] && [ "$attempt" -lt 50 ]; do
+  sleep 0.05
+  attempt=$((attempt + 1))
+done
+test -f "$ready"
 /usr/bin/whoami >/dev/null
 /bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /usr/bin/id' sh "$fixture_cgroup"
 /bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /bin/echo rpf-synthetic-exec' sh "$fixture_cgroup"
 /bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /bin/sh -c "printf rpf-artifact-v1 > \"$2\""' sh "$fixture_cgroup" "$artifact"
+/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" --address 127.0.0.1:18082' \
+  sh "$fixture_cgroup" "$callback"
+wait "$mock_pid"
+mock_pid=
 wait "$sensor_pid" || status=$?
 
 if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 130 ]; then
@@ -52,6 +73,7 @@ grep -q '"path":"/usr/bin/id"' "$output"
 grep -q '"path":"/bin/echo"' "$output"
 grep -q '"operation":"file_open_output"' "$output"
 grep -q '"operation":"artifact_finalized"' "$output"
+grep -q '"destination":"127.0.0.1:18082"' "$output"
 artifact_hash=$(sha256sum "$artifact" | cut -d ' ' -f 1)
 grep -q '"sha256":"'"$artifact_hash"'"' "$output"
 if grep -q '"path":"/usr/bin/whoami"' "$output"; then
@@ -69,6 +91,7 @@ grep -q '"executable":"/bin/echo"' "$graph"
 grep -q '"kind":"observed_exec_parent"' "$graph"
 grep -q '"kind":"file_open_output"' "$graph"
 grep -q '"kind":"artifact_finalized"' "$graph"
+grep -q '"kind":"network_connect"' "$graph"
 "$validator" create-local-provenance --artifact "$artifact" --events "$output" \
   --repository https://example.test/agent-boundary --revision 1111111111111111111111111111111111111111 \
   --output "$provenance"
@@ -97,4 +120,3 @@ if "$binary" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture
   exit 1
 fi
 test "$before" = "$(sha256sum "$output")"
-cat "$output"

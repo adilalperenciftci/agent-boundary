@@ -97,6 +97,10 @@ with a fixed synthetic marker, then reruns identical input against a patched mod
 and remediation are demonstrated locally. Runtime evidence attributes the proof but cannot tell
 grant from denial; the current rejection is due to undeclared egress, not authorization awareness.
 
+A separate benign mock endpoint at `127.0.0.1:18082` is explicitly policy-declared. The kernel
+event and graph edge remain present, but verification returns `ALLOW`, providing a controlled
+expected-network non-detection case.
+
 ## Intended architecture
 
 The selected architecture is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto

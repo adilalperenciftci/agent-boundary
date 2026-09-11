@@ -186,6 +186,29 @@ func TestSensitiveAccessAndUnexpectedEgressReject(t *testing.T) {
 	}
 }
 
+func TestExpectedNetworkAccessAllows(t *testing.T) {
+	inputs := fixtureInputs(t, func(events *[]Event) {
+		base := *events
+		network := base[2]
+		network.EventID = "00000000-0000-7000-8000-000000000006"
+		network.Operation = "network_connect"
+		network.Resource = map[string]any{"destination": "127.0.0.1:8080", "protocol": 6}
+		network.Outcome = Outcome{Status: "attempted"}
+		*events = append(base[:3], append([]Event{network}, base[3:]...)...)
+	})
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := Verify(inputs, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Decision != "ALLOW" || len(decision.Reasons) != 0 {
+		t.Fatalf("expected network access produced a finding: %#v", decision)
+	}
+}
+
 func TestArtifactSubstitutionFails(t *testing.T) {
 	inputs := fixtureInputs(t, nil)
 	bundle, err := Assemble(inputs)
