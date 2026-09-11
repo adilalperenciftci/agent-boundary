@@ -9,7 +9,7 @@ import (
 
 func TestEventChainProducesParseableCanonicalStream(t *testing.T) {
 	chain, err := NewEventChain(
-		BuildScope{BuildID: "build-1", RunID: "run-1", BootID: "boot-1", CgroupID: 7, CgroupPathHash: "sha256:path"},
+		BuildScope{BuildID: "build-1", RunID: "run-1", Source: SourceIdentity{Repository: "https://example.test/repo", Revision: "abc"}, BootID: "boot-1", CgroupID: 7, CgroupPathHash: "sha256:path"},
 		Sensor{Name: "sensor", Version: "0.1.0", ConfigDigest: "sha256:config"},
 	)
 	if err != nil {
@@ -61,7 +61,7 @@ func TestWriteCanonicalExclusiveRefusesReplacement(t *testing.T) {
 
 func TestEventChainRejectsCallerOwnedMetadata(t *testing.T) {
 	chain, err := NewEventChain(
-		BuildScope{BuildID: "build-1", RunID: "run-1", BootID: "boot-1", CgroupID: 7, CgroupPathHash: "sha256:path"},
+		BuildScope{BuildID: "build-1", RunID: "run-1", Source: SourceIdentity{Repository: "https://example.test/repo", Revision: "abc"}, BootID: "boot-1", CgroupID: 7, CgroupPathHash: "sha256:path"},
 		Sensor{Name: "sensor", Version: "0.1.0", ConfigDigest: "sha256:config"},
 	)
 	if err != nil {

@@ -46,6 +46,9 @@ func Assemble(inputs Inputs) (Bundle, error) {
 	if identity.BuildID != events[0].Build.BuildID || identity.RunIdentity.RunID != events[0].Build.RunID {
 		return Bundle{}, errors.New("provenance and runtime build identity mismatch")
 	}
+	if identity.Source != events[0].Build.Source {
+		return Bundle{}, errors.New("provenance and runtime source identity mismatch")
+	}
 	artifactHash := Digest(inputs.ArtifactBytes)
 	if !subjectMatches(provenance.Subject, inputs.ArtifactName, artifactHash) {
 		return Bundle{}, errors.New("SLSA provenance subject does not match artifact")

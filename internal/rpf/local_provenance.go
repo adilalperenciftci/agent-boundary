@@ -15,6 +15,9 @@ func CreateLocalFixtureProvenance(artifactName string, artifact []byte, events [
 	}
 	first := events[0]
 	last := events[len(events)-1]
+	if first.Build.Source != (SourceIdentity{Repository: repository, Revision: revision}) {
+		return Statement{}, errors.New("local provenance source differs from runtime evidence")
+	}
 	identity := Correlation{
 		BuildID:     first.Build.BuildID,
 		BuilderID:   LocalBuilderID,

@@ -36,6 +36,8 @@ auth_proof=/src/build/out/rpf-authz-proof
 auth_ready=build/out/$case_name-auth.ready
 auth_result=build/out/$case_name-auth-result.txt
 enter=/src/build/out/rpf-cgroup-enter
+repository=https://example.test/agent-boundary
+revision=1111111111111111111111111111111111111111
 mock_pid=
 
 if ! mountpoint -q /sys/kernel/tracing; then
@@ -73,6 +75,7 @@ fi
 status=0
 timeout --signal=INT 4 "$sensor" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
   --build-id "rpf-$case_name" --run-id "local-$case_name" --boot-id "$boot_id" \
+  --repository "$repository" --revision "$revision" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$evidence" \
   --sensitive-path "$credential" --sensitive-category synthetic_credential &
 sensor_pid=$!
@@ -145,7 +148,7 @@ grep -q '"kind":"network_connect"' "$graph"
 grep -q '"schema_version":"0.2"' "$graph"
 grep -q '"parent_observation":"unobserved"' "$graph"
 "$verifier" create-local-provenance --artifact "$artifact" --events "$evidence" \
-  --repository https://example.test/agent-boundary --revision 1111111111111111111111111111111111111111 \
+  --repository "$repository" --revision "$revision" \
   --output "$provenance"
 "$verifier" assemble --artifact "$artifact" --events "$evidence" --provenance "$provenance" \
   --policy "$policy" --output "$bundle"

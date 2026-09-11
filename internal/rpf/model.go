@@ -1,7 +1,7 @@
 package rpf
 
 const (
-	EventSchema      = "0.1"
+	EventSchema      = "0.2"
 	ManifestSchema   = "0.1"
 	StatementType    = "https://in-toto.io/Statement/v1"
 	RuntimePredicate = "https://in-toto.io/attestation/runtime-trace/v0.1"
@@ -12,11 +12,12 @@ const (
 )
 
 type BuildScope struct {
-	BuildID        string `json:"build_id"`
-	RunID          string `json:"run_id"`
-	BootID         string `json:"boot_id"`
-	CgroupID       uint64 `json:"cgroup_id"`
-	CgroupPathHash string `json:"cgroup_path_hash"`
+	BuildID        string         `json:"build_id"`
+	RunID          string         `json:"run_id"`
+	Source         SourceIdentity `json:"source"`
+	BootID         string         `json:"boot_id"`
+	CgroupID       uint64         `json:"cgroup_id"`
+	CgroupPathHash string         `json:"cgroup_path_hash"`
 }
 
 type Executable struct {

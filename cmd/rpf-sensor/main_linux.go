@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -24,12 +25,24 @@ import (
 
 const maxTrackedProcesses = 65_536
 
+type sensorConfiguration struct {
+	ObjectSHA256        string `json:"object_sha256"`
+	CgroupID            uint64 `json:"cgroup_id"`
+	CgroupPathSHA256    string `json:"cgroup_path_sha256"`
+	Repository          string `json:"repository"`
+	Revision            string `json:"revision"`
+	SensitivePathSHA256 string `json:"sensitive_path_sha256"`
+	SensitiveCategory   string `json:"sensitive_category"`
+}
+
 func main() {
 	objectPath := flag.String("object", "", "compiled CO-RE BPF object")
 	cgroupID := flag.Uint64("cgroup-id", 0, "target cgroup v2 ID")
 	cgroupPath := flag.String("cgroup-path", "", "target cgroup v2 filesystem path")
 	buildID := flag.String("build-id", "", "unique build execution ID")
 	runID := flag.String("run-id", "", "CI or local run ID")
+	repository := flag.String("repository", "", "source repository identity asserted by build registration")
+	revision := flag.String("revision", "", "source revision asserted by build registration")
 	bootID := flag.String("boot-id", "", "host boot ID")
 	cgroupPathHash := flag.String("cgroup-path-hash", "", "SHA-256 commitment to registered cgroup path")
 	outputPath := flag.String("output", "", "new canonical evidence JSONL file")
@@ -38,8 +51,8 @@ func main() {
 	sensitiveCategory := flag.String("sensitive-category", "", "category emitted for the configured sensitive path")
 	flag.Parse()
 	if *objectPath == "" || *cgroupID == 0 || *cgroupPath == "" || *buildID == "" || *runID == "" ||
-		*bootID == "" || *cgroupPathHash == "" || *outputPath == "" || *artifactPath == "" {
-		fatal("--object, --output, --artifact, --build-id, --run-id, --boot-id, --cgroup-path, --cgroup-path-hash, and non-zero --cgroup-id are required")
+		*repository == "" || *revision == "" || *bootID == "" || *cgroupPathHash == "" || *outputPath == "" || *artifactPath == "" {
+		fatal("--object, --output, --artifact, --build-id, --run-id, --repository, --revision, --boot-id, --cgroup-path, --cgroup-path-hash, and non-zero --cgroup-id are required")
 	}
 	if !filepath.IsAbs(*artifactPath) {
 		fatal("--artifact must be an absolute path")
@@ -57,10 +70,16 @@ func main() {
 	if err != nil {
 		fatal("read BPF object: %v", err)
 	}
-	configMaterial := fmt.Sprintf("object_sha256=%s\ncgroup_id=%d\ncgroup_path_sha256=%s\nsensitive_path_sha256=%s\nsensitive_category=%s\n",
-		rpf.Digest(object), *cgroupID, rpf.Digest([]byte(*cgroupPath)), rpf.Digest([]byte(*sensitivePath)), *sensitiveCategory)
-	source := rpf.Sensor{Name: "rpf-sensor", Version: "0.2.0", ConfigDigest: "sha256:" + rpf.Digest([]byte(configMaterial))}
-	build := rpf.BuildScope{BuildID: *buildID, RunID: *runID, BootID: *bootID, CgroupID: *cgroupID, CgroupPathHash: *cgroupPathHash}
+	configDigest, err := digestSensorConfiguration(sensorConfiguration{
+		ObjectSHA256: rpf.Digest(object), CgroupID: *cgroupID,
+		CgroupPathSHA256: rpf.Digest([]byte(*cgroupPath)), Repository: *repository, Revision: *revision,
+		SensitivePathSHA256: rpf.Digest([]byte(*sensitivePath)), SensitiveCategory: *sensitiveCategory,
+	})
+	if err != nil {
+		fatal("encode sensor configuration: %v", err)
+	}
+	source := rpf.Sensor{Name: "rpf-sensor", Version: "0.2.0", ConfigDigest: configDigest}
+	build := rpf.BuildScope{BuildID: *buildID, RunID: *runID, Source: rpf.SourceIdentity{Repository: *repository, Revision: *revision}, BootID: *bootID, CgroupID: *cgroupID, CgroupPathHash: *cgroupPathHash}
 	chain, err := rpf.NewEventChain(build, source)
 	if err != nil {
 		fatal("initialize event chain: %v", err)
@@ -171,6 +190,14 @@ func main() {
 	if counterReadError {
 		fatal("read loss counter: %v", err)
 	}
+}
+
+func digestSensorConfiguration(config sensorConfiguration) (string, error) {
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		return "", err
+	}
+	return "sha256:" + rpf.Digest(encoded), nil
 }
 
 func ipv4Destination(address uint32, port uint16) string {

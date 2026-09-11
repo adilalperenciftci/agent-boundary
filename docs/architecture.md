@@ -89,6 +89,11 @@ sequence and persistence. Graph construction is pure and replayable. The attesta
 does not mutate evidence. The signer authenticates immutable statement bytes. The verifier
 receives untrusted bytes and recomputes all links under local policy.
 
+Build registration supplies repository and revision to the sensor before collection. Those values
+are immutable event-scope fields and must equal provenance, but the local registrar is not an
+authenticated source-control authority. This separates demonstrated equality from future hosted
+identity assurance.
+
 ## Technology choices
 
 Go plus `cilium/ebpf` was selected over Aya and a pure third-party adapter after comparison in

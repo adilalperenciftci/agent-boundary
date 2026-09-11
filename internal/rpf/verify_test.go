@@ -9,7 +9,7 @@ import (
 func fixtureInputs(t testing.TB, mutate func(*[]Event)) Inputs {
 	t.Helper()
 	artifact := []byte("deterministic fixture artifact\n")
-	build := BuildScope{BuildID: "bld_fixture_001", RunID: "local-run-001", BootID: "4f25a5e2-3a0d-4bb0-99dd-a4e4b6c2a100", CgroupID: 99122, CgroupPathHash: "sha256:cgroup"}
+	build := BuildScope{BuildID: "bld_fixture_001", RunID: "local-run-001", Source: SourceIdentity{Repository: "https://example.test/repo", Revision: "1111111111111111111111111111111111111111"}, BootID: "4f25a5e2-3a0d-4bb0-99dd-a4e4b6c2a100", CgroupID: 99122, CgroupPathHash: "sha256:cgroup"}
 	sensor := Sensor{Name: "rpf-fixture-sensor", Version: "0.1.0", ConfigDigest: "sha256:sensor-config"}
 	parent := Process{ProcessKey: "sha256:parent", PID: 100, TGID: 100, PPID: 1, StartTimeNS: 1000, PIDNamespace: 42, MountNamespace: 43, UID: 1000, GID: 1000, Executable: Executable{Path: "/bin/sh", Identity: "sha256:sh", IdentityKind: "content_sha256"}}
 	compiler := Process{ProcessKey: "sha256:compiler", ParentKey: parent.ProcessKey, PID: 101, TGID: 101, PPID: 100, StartTimeNS: 2000, PIDNamespace: 42, MountNamespace: 43, UID: 1000, GID: 1000, Executable: Executable{Path: "/usr/bin/cc", Identity: "sha256:cc", IdentityKind: "content_sha256"}}
@@ -41,7 +41,10 @@ func fixtureInputs(t testing.TB, mutate func(*[]Event)) Inputs {
 		stream.Write(raw)
 		stream.WriteByte('\n')
 	}
-	provenance, err := CreateLocalFixtureProvenance("artifact", artifact, events, "https://example.test/repo", "1111111111111111111111111111111111111111")
+	provenance, err := CreateLocalFixtureProvenance("artifact", artifact, events, events[0].Build.Source.Repository, events[0].Build.Source.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
 	provenanceBytes, err := canonical(provenance)
 	if err != nil {
 		t.Fatal(err)
@@ -124,6 +127,14 @@ func TestBaselineAssemblesAndAllows(t *testing.T) {
 	}
 	if bundle.Graph.Edges[0].Kind != "observed_exec_parent" {
 		t.Fatalf("observed parent edge was not labelled: %#v", bundle.Graph.Edges[0])
+	}
+}
+
+func TestEventSchemaV01IsRejected(t *testing.T) {
+	inputs := fixtureInputs(t, nil)
+	legacy := bytes.Replace(inputs.EventBytes, []byte(`"schema_version":"0.2"`), []byte(`"schema_version":"0.1"`), 1)
+	if _, err := ParseEventStream(legacy); err == nil || !strings.Contains(err.Error(), "unsupported event schema") {
+		t.Fatalf("legacy event schema was accepted: %v", err)
 	}
 }
 
@@ -269,21 +280,11 @@ func TestUnauthorizedBuilderRejects(t *testing.T) {
 }
 
 func TestUnauthorizedRepositoryRejects(t *testing.T) {
-	inputs := fixtureInputs(t, nil)
-	statement, err := decodeStatement(inputs.ProvenanceBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	definition := statement.Predicate["buildDefinition"].(map[string]any)
-	identity := definition["internalParameters"].(map[string]any)[BuildIdentityKey].(map[string]any)
-	source := identity["sourceRevision"].(map[string]any)
-	source["repository"] = "https://attacker.example/repo"
-	definition["externalParameters"].(map[string]any)["repository"] = source["repository"]
-	definition["resolvedDependencies"].([]any)[0].(map[string]any)["uri"] = source["repository"]
-	inputs.ProvenanceBytes, err = canonical(statement)
-	if err != nil {
-		t.Fatal(err)
-	}
+	inputs := fixtureInputs(t, func(events *[]Event) {
+		for index := range *events {
+			(*events)[index].Build.Source.Repository = "https://attacker.example/repo"
+		}
+	})
 	bundle, err := Assemble(inputs)
 	if err != nil {
 		t.Fatal(err)
@@ -294,6 +295,27 @@ func TestUnauthorizedRepositoryRejects(t *testing.T) {
 	}
 	if decision.Decision != "REJECT" || !hasReason(decision, "RPF-SOURCE-001") {
 		t.Fatalf("unauthorized repository was accepted: %#v", decision)
+	}
+}
+
+func TestRuntimeAndProvenanceSourceMismatchFails(t *testing.T) {
+	inputs := fixtureInputs(t, nil)
+	statement, err := decodeStatement(inputs.ProvenanceBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := statement.Predicate["buildDefinition"].(map[string]any)
+	identity := definition["internalParameters"].(map[string]any)[BuildIdentityKey].(map[string]any)
+	source := identity["sourceRevision"].(map[string]any)
+	source["revision"] = "2222222222222222222222222222222222222222"
+	definition["externalParameters"].(map[string]any)["revision"] = source["revision"]
+	definition["resolvedDependencies"].([]any)[0].(map[string]any)["digest"].(map[string]any)["gitCommit"] = source["revision"]
+	inputs.ProvenanceBytes, err = canonical(statement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Assemble(inputs); err == nil || !strings.Contains(err.Error(), "runtime source identity mismatch") {
+		t.Fatalf("runtime/provenance source mismatch was accepted: %v", err)
 	}
 }
 

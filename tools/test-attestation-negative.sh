@@ -9,12 +9,14 @@ policy=${5:-lab/kernel/policy.json}
 malformed=build/out/provenance.malformed.json
 wrong_digest=build/out/provenance.wrong-digest.json
 unauthorized_builder=build/out/provenance.unauthorized-builder.json
-unauthorized_repository=build/out/provenance.unauthorized-repository.json
+runtime_source_mismatch=build/out/provenance.runtime-source-mismatch.json
+unauthorized_repository_policy=build/out/policy.unauthorized-repository.json
 output=build/out/negative-attestation-bundle
 decision=build/out/negative-attestation-decision.json
 
 cleanup() {
-  rm -f "$malformed" "$wrong_digest" "$unauthorized_builder" "$unauthorized_repository" "$decision"
+  rm -f "$malformed" "$wrong_digest" "$unauthorized_builder" "$runtime_source_mismatch" \
+    "$unauthorized_repository_policy" "$decision"
   rm -rf "$output"
 }
 trap cleanup EXIT INT TERM
@@ -47,13 +49,21 @@ grep -q '"code":"RPF-BUILDER-001"' "$decision"
 rm -rf "$output"
 
 sed 's#https://example.test/agent-boundary#https://attacker.example/repo#g' \
-  "$provenance" >"$unauthorized_repository"
-"$validator" assemble --artifact "$artifact" --events "$events" --provenance "$unauthorized_repository" \
-  --policy "$policy" --output "$output" >/dev/null
+  "$provenance" >"$runtime_source_mismatch"
+status=0
+"$validator" assemble --artifact "$artifact" --events "$events" --provenance "$runtime_source_mismatch" \
+  --policy "$policy" --output "$output" >/dev/null 2>&1 || status=$?
+test "$status" -eq 4
+test ! -e "$output"
+
+sed 's#https://example.test/agent-boundary#https://attacker.example/repo#g' \
+  "$policy" >"$unauthorized_repository_policy"
+"$validator" assemble --artifact "$artifact" --events "$events" --provenance "$provenance" \
+  --policy "$unauthorized_repository_policy" --output "$output" >/dev/null
 status=0
 "$validator" verify-fixture --artifact "$artifact" --events "$events" \
-  --provenance "$unauthorized_repository" --policy "$policy" --bundle "$output" >"$decision" || status=$?
+  --provenance "$provenance" --policy "$unauthorized_repository_policy" --bundle "$output" >"$decision" || status=$?
 test "$status" -eq 3
 grep -q '"code":"RPF-SOURCE-001"' "$decision"
 
-printf '%s\n' '{"malformed_provenance":"REJECTED","wrong_artifact_digest":"REJECTED","unauthorized_builder":"REJECTED","unauthorized_repository":"REJECTED"}'
+printf '%s\n' '{"malformed_provenance":"REJECTED","wrong_artifact_digest":"REJECTED","runtime_source_mismatch":"REJECTED","unauthorized_builder":"REJECTED","unauthorized_repository":"REJECTED"}'

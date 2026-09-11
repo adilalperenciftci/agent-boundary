@@ -18,6 +18,8 @@ This repository is a research prototype and does not establish production suitab
   time/freshness are not demonstrated.
 - Local provenance is an explicitly unsigned fixture profile. It is structurally SLSA v1.2 Build
   compatible but does not claim a SLSA Build level or hosted-builder trust.
+- Runtime events bind repository/revision registration claims to provenance, but the local sensor
+  does not verify checkout contents or authenticate those claims against source control.
 
 ## Observation and attribution limits
 

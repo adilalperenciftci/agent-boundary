@@ -9,3 +9,17 @@ func TestIPv4Destination(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestSensorConfigurationDigestHasUnambiguousFields(t *testing.T) {
+	left, err := digestSensorConfiguration(sensorConfiguration{Repository: "repo\nrevision=other", Revision: "revision"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	right, err := digestSensorConfiguration(sensorConfiguration{Repository: "repo", Revision: "other\nrevision=revision"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if left == right {
+		t.Fatal("distinct registration fields produced the same configuration commitment")
+	}
+}

@@ -42,6 +42,7 @@ Implemented invariants include:
 
 - artifact bytes must match provenance, evidence, and Runtime Trace subjects;
 - build and CI run identity must agree across runtime evidence and SLSA provenance;
+- source repository and revision must agree between runtime scope and SLSA provenance;
 - event order and hash-chain integrity must verify;
 - execution graph and evidence manifest are recomputed, not trusted;
 - non-zero or unknown event loss cannot produce `ALLOW`;

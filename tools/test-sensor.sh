@@ -9,6 +9,8 @@ graph=${5:-build/out/sensor-test-graph.json}
 artifact=${6:-/src/build/out/sensor-test-artifact.txt}
 build_id=${RPF_TEST_BUILD_ID:-rpf-sensor-smoke}
 run_id=${RPF_TEST_RUN_ID:-local-container-smoke}
+repository=https://example.test/agent-boundary
+revision=1111111111111111111111111111111111111111
 callback=/src/build/out/rpf-local-connect
 mock=/src/build/out/rpf-mock-server
 ready=${RPF_TEST_READY:-build/out/sensor-test-mock.ready}
@@ -50,6 +52,7 @@ fi
 status=0
 timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
   --build-id "$build_id" --run-id "$run_id" --boot-id "$boot_id" \
+  --repository "$repository" --revision "$revision" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$output" &
 sensor_pid=$!
 sleep 1
@@ -100,7 +103,7 @@ grep -q '"kind":"network_connect"' "$graph"
 grep -q '"schema_version":"0.2"' "$graph"
 grep -q '"parent_observation":"unobserved"' "$graph"
 "$validator" create-local-provenance --artifact "$artifact" --events "$output" \
-  --repository https://example.test/agent-boundary --revision 1111111111111111111111111111111111111111 \
+  --repository "$repository" --revision "$revision" \
   --output "$provenance"
 "$validator" assemble --artifact "$artifact" --events "$output" --provenance "$provenance" \
   --policy "$policy" --output "$bundle"
@@ -125,6 +128,7 @@ fi
 before=$(sha256sum "$output")
 if "$binary" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
   --build-id "$build_id" --run-id "$run_id" --boot-id "$boot_id" \
+  --repository "$repository" --revision "$revision" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$output" >/dev/null 2>&1; then
   echo "sensor overwrote an existing evidence stream" >&2
   exit 1

@@ -65,6 +65,9 @@ func validateEvent(event Event) error {
 	if event.Build.BootID == "" || event.Build.CgroupID == 0 || event.Build.CgroupPathHash == "" {
 		return errors.New("build kernel scope is incomplete")
 	}
+	if event.Build.Source.Repository == "" || event.Build.Source.Revision == "" {
+		return errors.New("build source identity is missing")
+	}
 	if event.Sequence == 0 || event.MonotonicNS == 0 {
 		return errors.New("event sequence and monotonic time must be positive")
 	}

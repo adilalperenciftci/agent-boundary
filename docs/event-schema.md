@@ -6,7 +6,9 @@ The event model is versioned, bounded, deterministic, and security-minimal. It r
 needed for build attribution and policy while excluding argv by default, environment values,
 file contents, credential values, packet payloads, and arbitrary syscall arguments.
 
-Version `0.1` is a research schema. Unknown fields and versions fail strict parsing. Protobuf
+Version `0.2` is a research schema. It adds mandatory source registration identity to `0.1`;
+legacy `0.1` events fail explicitly rather than being interpreted under new semantics. Unknown
+fields and versions fail strict parsing. Protobuf
 is deferred until the fixed kernel/user ABI has been exercised on supported Linux kernels.
 
 ## Canonical event
@@ -16,14 +18,18 @@ keys, no insignificant whitespace, no duplicate keys, finite numbers only, and a
 
 ```json
 {
-  "schema_version": "0.1",
-  "event_id": "018f6d8d-8a21-7a2b-9c11-112233445566",
+  "schema_version": "0.2",
+  "event_id": "urn:rpf:event:...",
   "sequence": 1,
   "observed_at": "2026-09-11T12:00:00.123456Z",
   "monotonic_ns": 9123456789,
   "build": {
     "build_id": "bld_7d44f4a5bfc24bfa",
     "run_id": "local-lab-0001",
+    "source": {
+      "repository": "https://example.test/agent-boundary",
+      "revision": "1111111111111111111111111111111111111111"
+    },
     "boot_id": "4f25a5e2-3a0d-4bb0-99dd-a4e4b6c2a100",
     "cgroup_id": 99122,
     "cgroup_path_hash": "sha256:..."
@@ -48,7 +54,7 @@ keys, no insignificant whitespace, no duplicate keys, finite numbers only, and a
   "operation": "process_exec",
   "resource": null,
   "outcome": {"status": "success", "errno": 0},
-  "sensor": {"name": "rpf-sensor", "version": "0.1.0", "config_digest": "sha256:..."},
+  "sensor": {"name": "rpf-sensor", "version": "0.2.0", "config_digest": "sha256:..."},
   "integrity": {"previous_event_hash": "sha256:...", "event_hash": "sha256:..."}
 }
 ```
@@ -62,6 +68,9 @@ The current collector derives `event_id` deterministically from build ID, run ID
 its uniqueness therefore depends on the registrar never reusing a build execution identity.
 `observed_at` is userspace collection time, while `monotonic_ns` comes from kernel boot time for
 kernel events. Neither timestamp alone establishes event identity or causal ordering across hosts.
+Repository and revision are registration assertions committed into every event and the sensor
+configuration digest. They enable strict provenance equality but are not independently
+authenticated source-control evidence in the local profile.
 
 ## Operations and resources
 

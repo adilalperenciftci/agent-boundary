@@ -26,6 +26,15 @@ correlation identity and requires exact policy allowlists for builder and reposi
 tests require `RPF-BUILDER-001` and `RPF-SOURCE-001` rejections. This does not establish OIDC
 workload identity, source VSA validation, or transparency freshness.
 
+Supply-chain review then found that runtime evidence carried build/run IDs but source identity was
+introduced only by provenance. Repository and revision are now immutable event-scope fields and
+part of sensor configuration identity; assembly rejects exact source disagreement. Unit and CLI
+regressions cover commit/repository mismatch. These fields remain local registration assertions,
+not authenticated checkout proof.
+
+The same review found delimiter ambiguity in the sensor configuration hash's former line-oriented
+encoding. It now hashes typed JSON fields, so embedded separators cannot change field boundaries.
+
 ## Detection engineer
 
 Interim review found that artifact-producer identity was present in evidence and graph edges but
