@@ -60,6 +60,12 @@ provenance and a provenance subject with a wrong artifact digest without creatin
 bundle. This demonstrates local fixture rejection, not keyless identity or transparency-log
 verification; the current lab intentionally uses an offline key and skips tlog verification.
 
+Runtime replay is exercised with two independently captured, complete kernel event streams. A
+bundle from build B presented with build A's artifact, events, and provenance produces explicit
+identity, manifest, and runtime-trace integrity reasons and `REJECT`; build B provenance presented
+with build A events fails assembly. This establishes cross-build mismatch handling for the local
+identity profile, not freshness against a trusted external clock or transparency checkpoint.
+
 ## Exploit-to-telemetry correlation
 
 For MBE-001, the non-exploit chain is: fixture shell input → successful `openat` → kernel

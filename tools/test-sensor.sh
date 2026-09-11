@@ -7,12 +7,15 @@ output=${3:-build/out/sensor-test.jsonl}
 validator=${4:-build/out/rpf}
 graph=${5:-build/out/sensor-test-graph.json}
 artifact=${6:-/src/build/out/sensor-test-artifact.txt}
+build_id=${RPF_TEST_BUILD_ID:-rpf-sensor-smoke}
+run_id=${RPF_TEST_RUN_ID:-local-container-smoke}
 callback=/src/build/out/rpf-local-connect
 mock=/src/build/out/rpf-mock-server
-ready=build/out/sensor-test-mock.ready
+ready=${RPF_TEST_READY:-build/out/sensor-test-mock.ready}
 mock_pid=
-provenance=build/out/sensor-test-provenance.json
-bundle=build/out/sensor-test-bundle
+provenance=${RPF_TEST_PROVENANCE:-build/out/sensor-test-provenance.json}
+bundle=${RPF_TEST_BUNDLE:-build/out/sensor-test-bundle}
+full_acceptance=${RPF_TEST_FULL_ACCEPTANCE:-1}
 policy=lab/kernel/policy.json
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
@@ -42,7 +45,7 @@ fi
 
 status=0
 timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
-  --build-id rpf-sensor-smoke --run-id local-container-smoke --boot-id "$boot_id" \
+  --build-id "$build_id" --run-id "$run_id" --boot-id "$boot_id" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$output" &
 sensor_pid=$!
 sleep 1
@@ -100,21 +103,23 @@ grep -q '"kind":"network_connect"' "$graph"
 "$validator" verify-fixture --artifact "$artifact" --events "$output" --provenance "$provenance" \
   --policy "$policy" --bundle "$bundle"
 grep -q 'https://in-toto.io/attestation/runtime-trace/v0.1' "$bundle/runtime-trace.json"
-./tools/test-signing.sh "$bundle/runtime-trace.json" "$provenance"
-original=$artifact.original
-cp "$artifact" "$original"
-printf substituted >> "$artifact"
-tamper_status=0
-"$validator" verify-fixture --artifact "$artifact" --events "$output" --provenance "$provenance" \
-  --policy "$policy" --bundle "$bundle" || tamper_status=$?
-mv "$original" "$artifact"
-if [ "$tamper_status" -ne 3 ]; then
-  echo "artifact substitution did not produce verifier REJECT" >&2
-  exit 1
+if [ "$full_acceptance" -eq 1 ]; then
+  ./tools/test-signing.sh "$bundle/runtime-trace.json" "$provenance"
+  original=$artifact.original
+  cp "$artifact" "$original"
+  printf substituted >> "$artifact"
+  tamper_status=0
+  "$validator" verify-fixture --artifact "$artifact" --events "$output" --provenance "$provenance" \
+    --policy "$policy" --bundle "$bundle" || tamper_status=$?
+  mv "$original" "$artifact"
+  if [ "$tamper_status" -ne 3 ]; then
+    echo "artifact substitution did not produce verifier REJECT" >&2
+    exit 1
+  fi
 fi
 before=$(sha256sum "$output")
 if "$binary" --object "$object" --cgroup-id "$cgroup_id" --cgroup-path "$fixture_cgroup" \
-  --build-id rpf-sensor-smoke --run-id local-container-smoke --boot-id "$boot_id" \
+  --build-id "$build_id" --run-id "$run_id" --boot-id "$boot_id" \
   --cgroup-path-hash "$cgroup_path_hash" --artifact "$artifact" --output "$output" >/dev/null 2>&1; then
   echo "sensor overwrote an existing evidence stream" >&2
   exit 1

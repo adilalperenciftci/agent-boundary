@@ -58,6 +58,12 @@ The offline Cosign test additionally requires rejection of changed attestation b
 substitute bytes, and a valid bundle checked under an unrelated laboratory public key. Private
 keys and the unrelated public key are removed after the run; all credentials are synthetic.
 
+`tools/test-runtime-replay.sh` captures a second benign build under a distinct build/run identity
+and cgroup, then supplies its complete runtime bundle to the first build's verifier inputs. Strict
+verification must return `REJECT` with identity and recomputed-manifest/runtime-trace mismatch
+reasons. Supplying the second build's provenance alongside the first event stream must fail
+assembly without writing a bundle. This uses two observed kernel runs rather than relabelled JSON.
+
 The same script runs EXP-001 twice with byte-identical authorization claims: explicitly vulnerable
 mode must grant the synthetic marker and patched mode must deny it. Both proof processes and
 loopback attempts must appear in telemetry. This is a complete local exploit/patch path, while the
