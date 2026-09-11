@@ -14,6 +14,7 @@ docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-local
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-mock-server ./cmd/rpf-mock-server
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-authz-target ./cmd/rpf-authz-target
 docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-authz-proof ./cmd/rpf-authz-proof
+docker run --rm -v "$root:/src" -w /src "$image" go build -o build/out/rpf-cgroup-enter ./cmd/rpf-cgroup-enter
 docker run --rm --privileged -v "$root:/src" -w /src "$image" ./tools/test-sensor.sh
 docker run --rm -v "$root:/src" -w /src "$image" ./tools/test-evidence-integrity.sh
 docker run --rm -v "$root:/src" -w /src "$image" ./tools/test-attestation-negative.sh

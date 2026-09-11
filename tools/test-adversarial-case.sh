@@ -35,6 +35,7 @@ auth_target=/src/build/out/rpf-authz-target
 auth_proof=/src/build/out/rpf-authz-proof
 auth_ready=build/out/$case_name-auth.ready
 auth_result=build/out/$case_name-auth-result.txt
+enter=/src/build/out/rpf-cgroup-enter
 mock_pid=
 
 if ! mountpoint -q /sys/kernel/tracing; then
@@ -55,9 +56,12 @@ cgroup_id=$(stat -c %i "$fixture_cgroup")
 boot_id=$(cat /proc/sys/kernel/random/boot_id)
 cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' ' -f 1)
 rm -f "$evidence" "$graph" "$artifact" "$provenance" "$auth_result"
+: >"$artifact"
+chown 65534:65534 "$artifact"
+chmod 0600 "$artifact"
 rm -f "$ready" "$auth_ready"
 cp /bin/sh "$renamed"
-chmod 0700 "$renamed"
+chmod 0755 "$renamed"
 if [ -d "$bundle" ]; then
   rm -f "$bundle/execution-graph.json" "$bundle/evidence-manifest.json" "$bundle/runtime-trace.json"
   rmdir "$bundle"
@@ -81,12 +85,14 @@ if [ ! -f "$ready" ]; then
   echo "local mock did not become ready" >&2
   exit 1
 fi
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /bin/sh -c "IFS= read -r ignored < \"$2\"; /usr/bin/id; printf rpf-adversarial-artifact > \"$3\""' \
-  sh "$fixture_cgroup" "$credential" "$artifact"
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" -c "IFS= read -r ignored < \"$3\""' \
-  sh "$fixture_cgroup" "$renamed" "$credential"
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" --address 127.0.0.1:18080' \
-  sh "$fixture_cgroup" "$callback"
+"$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c \
+  'if printf tamper >> "$1" 2>/dev/null; then exit 90; fi' sh "/src/$evidence"
+"$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c \
+  'IFS= read -r ignored < "$1"; /usr/bin/id; printf rpf-adversarial-artifact > "$2"' \
+  sh "$credential" "$artifact"
+"$enter" --cgroup "$fixture_cgroup" -- "$renamed" -c 'IFS= read -r ignored < "$1"' \
+  sh "$credential"
+"$enter" --cgroup "$fixture_cgroup" -- "$callback" --address 127.0.0.1:18080
 wait "$mock_pid"
 mock_pid=
 
@@ -98,8 +104,8 @@ while [ ! -f "$auth_ready" ] && [ "$attempt" -lt 50 ]; do
   attempt=$((attempt + 1))
 done
 test -f "$auth_ready"
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" --address 127.0.0.1:18081 --expect "$3"' \
-  sh "$fixture_cgroup" "$auth_proof" "$auth_expect" | tee "$auth_result"
+"$enter" --cgroup "$fixture_cgroup" -- "$auth_proof" \
+  --address 127.0.0.1:18081 --expect "$auth_expect" | tee "$auth_result"
 wait "$mock_pid"
 mock_pid=
 wait "$sensor_pid" || status=$?
@@ -124,8 +130,9 @@ if grep -q 'not-a-real-secret' "$evidence"; then
   exit 1
 fi
 grep -q '"decode":0' "$evidence"
-grep -q '"kernel_correlation":0' "$evidence"
 grep -q '"kernel_reserve":0' "$evidence"
+grep -q '"uid":65534' "$evidence"
+grep -q '"gid":65534' "$evidence"
 
 "$verifier" graph-events --events "$evidence" --output "$graph"
 grep -q '"kind":"file_open_sensitive"' "$graph"
@@ -147,3 +154,9 @@ if [ "$decision_status" -ne 3 ]; then
 fi
 printf '%s' "$decision_output" | grep -q 'RPF-SENSITIVE-001'
 printf '%s' "$decision_output" | grep -q 'RPF-EGRESS-001'
+if grep -q '"kernel_correlation":0' "$evidence"; then
+  printf '%s' "$decision_output" | grep -q '"completeness":"complete"'
+else
+  printf '%s' "$decision_output" | grep -q 'RPF-EVIDENCE-001'
+  printf '%s' "$decision_output" | grep -q '"completeness":"incomplete"'
+fi

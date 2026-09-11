@@ -16,6 +16,7 @@ mock_pid=
 provenance=${RPF_TEST_PROVENANCE:-build/out/sensor-test-provenance.json}
 bundle=${RPF_TEST_BUNDLE:-build/out/sensor-test-bundle}
 full_acceptance=${RPF_TEST_FULL_ACCEPTANCE:-1}
+enter=/src/build/out/rpf-cgroup-enter
 policy=lab/kernel/policy.json
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
@@ -36,6 +37,9 @@ cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' '
 rm -f "$output"
 rm -f "$graph"
 rm -f "$artifact"
+: >"$artifact"
+chown 65534:65534 "$artifact"
+chmod 0600 "$artifact"
 rm -f "$ready"
 rm -f "$provenance"
 if [ -d "$bundle" ]; then
@@ -58,11 +62,10 @@ while [ ! -f "$ready" ] && [ "$attempt" -lt 50 ]; do
 done
 test -f "$ready"
 /usr/bin/whoami >/dev/null
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /usr/bin/id' sh "$fixture_cgroup"
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /bin/echo rpf-synthetic-exec' sh "$fixture_cgroup"
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /bin/sh -c "printf rpf-artifact-v1 > \"$2\""' sh "$fixture_cgroup" "$artifact"
-/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec "$2" --address 127.0.0.1:18082' \
-  sh "$fixture_cgroup" "$callback"
+"$enter" --cgroup "$fixture_cgroup" -- /usr/bin/id
+"$enter" --cgroup "$fixture_cgroup" -- /bin/echo rpf-synthetic-exec
+"$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c 'printf rpf-artifact-v1 > "$1"' sh "$artifact"
+"$enter" --cgroup "$fixture_cgroup" -- "$callback" --address 127.0.0.1:18082
 wait "$mock_pid"
 mock_pid=
 wait "$sensor_pid" || status=$?
@@ -86,6 +89,8 @@ fi
 grep -q '"kernel_reserve":0' "$output"
 grep -q '"kernel_correlation":0' "$output"
 grep -q '"decode":0' "$output"
+grep -q '"uid":65534' "$output"
+grep -q '"gid":65534' "$output"
 grep -q '"operation":"sensor_finalized"' "$output"
 "$validator" validate-events --events "$output"
 "$validator" graph-events --events "$output" --output "$graph"

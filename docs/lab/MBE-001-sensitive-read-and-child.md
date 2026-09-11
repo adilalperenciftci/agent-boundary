@@ -21,8 +21,8 @@ Expected policy result: `REJECT` with `RPF-SENSITIVE-001`. The renamed executabl
 ## Reproduction and actual result
 
 Run `./tools/test-adversarial.sh` in the checked-in kernel lab image. On 2026-09-11, Linux 6.8
-WSL2 produced two independent valid 13-event streams (vulnerable and patched authorization
-fixtures), each with five graph nodes, 11 graph edges, two `file_open_sensitive` events, zero
+WSL2 produced two independent valid 14-event streams (vulnerable and patched authorization
+fixtures), each with six graph nodes, 12 graph edges, two `file_open_sensitive` events, zero
 implemented loss counters, and a final `REJECT` containing both sensitive-access and egress
 reasons.
 

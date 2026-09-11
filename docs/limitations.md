@@ -6,6 +6,10 @@ This repository is a research prototype and does not establish production suitab
 
 - A root-equivalent or runner-host attacker can disable, replace, or lie to the sensor. The system
   records and detects some evidence inconsistencies; it does not create a trusted kernel or host.
+- The disposable lab drops build commands to UID/GID 65534 with `no_new_privs` and a minimal
+  environment after entering the target cgroup. The collector itself still runs as root in a
+  privileged container; this is fixture isolation, not hardened loader/collector privilege
+  separation.
 - Hash chaining detects retained-record modification, insertion, and interior deletion. It does
   not authenticate an unsigned stream, and a complete historical rollback needs a trusted signed
   checkpoint or transparency mechanism to detect.

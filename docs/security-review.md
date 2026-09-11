@@ -35,6 +35,15 @@ Seeds include valid canonical fixtures and malformed minimal documents. Schedule
 time-bounded and unprivileged; they do not cover kernel verifier behavior or establish exhaustive
 parser safety.
 
+The lab originally placed root build processes beside a root collector; cgroup membership alone
+does not restrict filesystem access. Build commands now enter the monitored cgroup through a
+fixed helper, set `no_new_privs`, clear supplementary groups, drop to UID/GID 65534, and receive no
+host environment values. A real append to the collector's 0600 evidence file is denied. Repeated
+runs observed correlation-loss counts of zero and one: strict verification requires complete
+evidence for zero, and `incomplete` plus `RPF-EVIDENCE-001` for non-zero. Either path retains the
+behavioral `REJECT`. This isolates the synthetic build from ordinary collector files but not from
+host root, the privileged container, kernel compromise, or a malicious collector.
+
 ## Controlled malware-behavior experiments
 
 MBE-001 emulates a synthetic credential-file read, child execution, artifact staging, an

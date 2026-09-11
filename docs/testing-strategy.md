@@ -70,6 +70,15 @@ Each run has its own cgroup, build/run identity, stream, graph, artifact, proven
 and policy decision. Both proof chains must appear in their own telemetry. This is a complete local
 exploit/patch path, while both builds still `REJECT` because sensitive access and undeclared egress
 remain intentionally unchanged; current kernel signals do not detect authorization semantics.
+
+Both adversarial builds run as UID/GID 65534 with `no_new_privs` and a four-variable synthetic
+environment. An attempted append to the root-owned 0600 evidence file must fail. On the tested
+kernel repeated runs observed either zero or one correlation-loss event because the denied open can
+race process exit. The test therefore requires `complete` when the counter is zero, or
+`incomplete` plus `RPF-EVIDENCE-001` when it is non-zero; sensitive/egress findings and `REJECT`
+remain mandatory in both cases. The benign UID-dropped baseline separately requires all counters
+to remain zero and `ALLOW`.
+
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.
