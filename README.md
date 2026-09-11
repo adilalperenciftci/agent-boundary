@@ -32,8 +32,10 @@ synthetic canonical runtime events
 The correlation slice uses synthetic events and has assurance level `fixture`. The M2/M3 Linux
 path proves cgroup-filtered `sched_process_exec` collection, composite process identity,
 canonical hash chaining, exclusive evidence creation, strict replay, and explicit ring-buffer
-loss accounting. Sensor output is not yet bound to a produced artifact or signed, and Sigstore
-verification is not implemented. `verify-fixture` is named to prevent unsigned fixture
+and kernel-correlation loss accounting. The M6 lab additionally binds an exact-path successful
+write-open observation to the final artifact hash. Sensor evidence is not yet assembled with
+real SLSA provenance or signed, and Sigstore verification is not implemented. `verify-fixture`
+is named to prevent unsigned fixture
 verification from being confused with the later strict signed verifier.
 
 Implemented invariants include:
@@ -101,8 +103,8 @@ reconciling missing data. See the [gap analysis](docs/research/runtime-attestati
 
 ## Limits
 
-- Kernel validation currently covers exec only, on one Linux 6.8 WSL2 Docker host; it is not a
-  portability claim and is not yet connected to the evidence collector.
+- Kernel validation currently covers exec and successful write-intent `openat` on one Linux 6.8
+  WSL2 Docker host; it is not a portability claim.
 - No signature or transparency-log verification is implemented yet.
 - Runtime Trace v0.1 is experimental and monitor event fields are not standardized.
 - Async eBPF cannot prove atomic file-content identity at access time.

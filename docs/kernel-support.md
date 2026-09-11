@@ -13,6 +13,7 @@ The current implementation requires:
 - cgroup v2 and a userspace cgroup ID corresponding to `bpf_get_current_cgroup_id()`;
 - kernel BTF at `/sys/kernel/btf/vmlinux` for CO-RE compilation/relocation;
 - tracefs and the `sched:sched_process_exec` tracepoint;
+- `syscalls:sys_enter_openat` and `syscalls:sys_exit_openat` tracepoints;
 - BPF ring-buffer support (Linux 5.8 or newer);
 - permissions to load BPF maps/programs and attach the tracepoint.
 
@@ -43,3 +44,10 @@ Ring-buffer reservation failures are measured in a per-CPU counter and emitted o
 sensor shutdown. Abrupt collector loss currently produces no signed finalization and therefore
 must be incomplete, never `ALLOW`. Host root can disable or forge this telemetry and remains
 outside the defended trust boundary.
+
+Write-open telemetry pairs `openat` entry and exit in a bounded hash map. Map insertion failure,
+path read/truncation, or cgroup migration during the syscall increments `kernel_correlation`.
+Only successful write-intent opens are emitted. Paths are copied user arguments, not resolved
+kernel dentries: symlinks, relative paths, directory FDs, rename publication, `openat2`, inherited
+descriptors, and mmap writes are not yet resolved. Artifact attribution therefore means
+“observed successful write-open plus final userspace hash,” not proof of written bytes.

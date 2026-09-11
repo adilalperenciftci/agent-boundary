@@ -99,6 +99,7 @@ an explicit origin and never replace the numeric destination.
   },
   "loss": {
     "kernel_reserve": 0,
+    "kernel_correlation": 0,
     "decode": 0,
     "queue": 0,
     "persistence": 0,
@@ -114,6 +115,10 @@ an explicit origin and never replace the numeric destination.
 
 Manifest canonical bytes are hashed and referenced from Runtime Trace. Loss fields are
 mandatory even when zero. Missing fields mean `unknown`, never assumed zero.
+
+`kernel_correlation` counts failures before a semantically complete kernel event can be emitted,
+including bounded pending-map insertion and pathname capture failures. It is distinct from ring
+buffer reservation loss. Any non-zero value makes strict evidence incomplete.
 
 ## Chain construction
 

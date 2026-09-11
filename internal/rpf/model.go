@@ -92,11 +92,12 @@ type ExecutionGraph struct {
 }
 
 type Loss struct {
-	KernelReserve    uint64 `json:"kernel_reserve"`
-	Decode           uint64 `json:"decode"`
-	Queue            uint64 `json:"queue"`
-	Persistence      uint64 `json:"persistence"`
-	CounterReadError bool   `json:"counter_read_error"`
+	KernelReserve     uint64 `json:"kernel_reserve"`
+	KernelCorrelation uint64 `json:"kernel_correlation"`
+	Decode            uint64 `json:"decode"`
+	Queue             uint64 `json:"queue"`
+	Persistence       uint64 `json:"persistence"`
+	CounterReadError  bool   `json:"counter_read_error"`
 }
 
 type Lifecycle struct {

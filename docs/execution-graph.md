@@ -17,3 +17,7 @@ Nodes use composite process keys. Edges state only what the event supports:
 No edge is named `caused`. A write-open does not prove bytes were written, and ancestry does
 not prove semantic influence. Nodes and edges are sorted before hashing, so replay yields the
 same graph digest for the same verified stream.
+
+The M6 laboratory graph now contains both `file_open_output` and `artifact_finalized` edges for
+an exact absolute artifact path. This supports observed write-open attribution; it does not turn
+the two observations into proof that the process supplied every final byte.

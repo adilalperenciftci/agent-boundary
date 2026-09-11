@@ -198,7 +198,7 @@ func completeness(manifest Manifest) string {
 	if !manifest.Lifecycle.Started || !manifest.Lifecycle.Finalized || manifest.Loss.CounterReadError {
 		return "unknown"
 	}
-	if manifest.Loss.KernelReserve+manifest.Loss.Decode+manifest.Loss.Queue+manifest.Loss.Persistence > 0 {
+	if manifest.Loss.KernelReserve+manifest.Loss.KernelCorrelation+manifest.Loss.Decode+manifest.Loss.Queue+manifest.Loss.Persistence > 0 {
 		return "incomplete"
 	}
 	return "complete"

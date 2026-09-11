@@ -19,6 +19,9 @@ not exclusion under every cgroup namespace/delegation arrangement or inclusion o
 
 The smoke test passes the resulting stream through `rpf validate-events`, then attempts to reuse
 the same evidence path. The second collector must fail and the file digest must remain unchanged.
+It also executes a target-cgroup shell that opens an absolute synthetic artifact for writing,
+requires the final digest to match the file, reconstructs both output-open and artifact edges,
+and requires every implemented loss counter to be zero.
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.

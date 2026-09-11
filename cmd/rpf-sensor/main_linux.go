@@ -4,10 +4,14 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -15,6 +19,8 @@ import (
 	"github.com/adilalperenciftci/agent-boundary/internal/sensor"
 	"golang.org/x/sys/unix"
 )
+
+const maxTrackedProcesses = 65_536
 
 func main() {
 	objectPath := flag.String("object", "", "compiled CO-RE BPF object")
@@ -24,10 +30,14 @@ func main() {
 	bootID := flag.String("boot-id", "", "host boot ID")
 	cgroupPathHash := flag.String("cgroup-path-hash", "", "SHA-256 commitment to registered cgroup path")
 	outputPath := flag.String("output", "", "new canonical evidence JSONL file")
+	artifactPath := flag.String("artifact", "", "absolute artifact path to finalize after monitoring")
 	flag.Parse()
 	if *objectPath == "" || *cgroupID == 0 || *buildID == "" || *runID == "" ||
-		*bootID == "" || *cgroupPathHash == "" || *outputPath == "" {
-		fatal("--object, --output, --build-id, --run-id, --boot-id, --cgroup-path-hash, and non-zero --cgroup-id are required")
+		*bootID == "" || *cgroupPathHash == "" || *outputPath == "" || *artifactPath == "" {
+		fatal("--object, --output, --artifact, --build-id, --run-id, --boot-id, --cgroup-path-hash, and non-zero --cgroup-id are required")
+	}
+	if !filepath.IsAbs(*artifactPath) {
+		fatal("--artifact must be an absolute path")
 	}
 	object, err := os.ReadFile(*objectPath)
 	if err != nil {
@@ -56,6 +66,9 @@ func main() {
 	})
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	processes := make(map[string]rpf.Process)
+	var artifactProducer *rpf.Process
+	var decodeLoss uint64
 	for {
 		event, err := monitor.Read(ctx)
 		if err != nil {
@@ -64,18 +77,55 @@ func main() {
 			}
 			fatal("read sensor: %v", err)
 		}
-		process := processFromExec(event, *bootID)
-		writeEvent(evidence, chain, rpf.Event{
-			ObservedAt: now(), MonotonicNS: event.MonotonicNS, Process: &process,
-			Operation: "process_exec", Resource: map[string]any{}, Outcome: rpf.Outcome{Status: "success"},
-		})
+		process := processFromKernel(event, *bootID)
+		switch event.Kind {
+		case sensor.EventExec:
+			process.Executable = rpf.Executable{Path: event.Filename, IdentityKind: "path_only"}
+			if _, exists := processes[process.ProcessKey]; exists || len(processes) < maxTrackedProcesses {
+				processes[process.ProcessKey] = process
+			} else {
+				decodeLoss++
+			}
+			writeEvent(evidence, chain, rpf.Event{
+				ObservedAt: now(), MonotonicNS: event.MonotonicNS, Process: &process,
+				Operation: "process_exec", Resource: map[string]any{}, Outcome: rpf.Outcome{Status: "success"},
+			})
+		case sensor.EventOpen:
+			observed, ok := processes[process.ProcessKey]
+			if !ok {
+				decodeLoss++
+				continue
+			}
+			writeEvent(evidence, chain, rpf.Event{
+				ObservedAt: now(), MonotonicNS: event.MonotonicNS, Process: &observed,
+				Operation: "file_open_output", Resource: map[string]any{"path": event.Filename, "flags": event.Flags},
+				Outcome: rpf.Outcome{Status: "success"},
+			})
+			if event.Filename == *artifactPath {
+				producer := observed
+				artifactProducer = &producer
+			}
+		}
 	}
+	if artifactProducer == nil {
+		fatal("artifact path had no attributable successful write-open: %s", *artifactPath)
+	}
+	artifactHash, err := digestFile(*artifactPath)
+	if err != nil {
+		fatal("hash artifact: %v", err)
+	}
+	writeEvent(evidence, chain, rpf.Event{
+		ObservedAt: now(), MonotonicNS: boottimeNS(), Process: artifactProducer,
+		Operation: "artifact_finalized", Resource: map[string]any{"path": *artifactPath, "sha256": artifactHash},
+		Outcome: rpf.Outcome{Status: "success"},
+	})
 	loss, err := monitor.Loss()
 	counterReadError := err != nil
 	writeEvent(evidence, chain, rpf.Event{
 		ObservedAt: now(), MonotonicNS: boottimeNS(), Operation: "sensor_finalized",
 		Resource: map[string]any{
-			"kernel_reserve": loss, "decode": 0, "queue": 0, "persistence": 0,
+			"kernel_reserve": loss.RingBuffer, "kernel_correlation": loss.Correlation,
+			"decode": decodeLoss, "queue": 0, "persistence": 0,
 			"counter_read_error": counterReadError,
 		},
 		Outcome: rpf.Outcome{Status: "success"},
@@ -85,7 +135,7 @@ func main() {
 	}
 }
 
-func processFromExec(event sensor.ExecEvent, bootID string) rpf.Process {
+func processFromKernel(event sensor.KernelEvent, bootID string) rpf.Process {
 	parentKey := rpf.ProcessKey(bootID, uint64(event.ParentPIDNamespace), event.PPID, event.ParentStartTimeNS)
 	return rpf.Process{
 		ProcessKey: rpf.ProcessKey(bootID, uint64(event.PIDNamespace), event.TGID, event.StartTimeNS),
@@ -94,6 +144,19 @@ func processFromExec(event sensor.ExecEvent, bootID string) rpf.Process {
 		MountNamespace: uint64(event.MountNamespace), UID: event.UID, GID: event.GID,
 		Executable: rpf.Executable{Path: event.Filename, IdentityKind: "path_only"},
 	}
+}
+
+func digestFile(path string) (string, error) {
+	artifact, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer artifact.Close()
+	digest := sha256.New()
+	if _, err := io.Copy(digest, artifact); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(digest.Sum(nil)), nil
 }
 
 func writeEvent(output *os.File, chain *rpf.EventChain, event rpf.Event) {

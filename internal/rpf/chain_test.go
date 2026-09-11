@@ -17,7 +17,7 @@ func TestEventChainProducesParseableCanonicalStream(t *testing.T) {
 	}
 	events := []Event{
 		{ObservedAt: "2026-09-11T12:00:00Z", MonotonicNS: 10, Operation: "sensor_started", Resource: map[string]any{}, Outcome: Outcome{Status: "success"}},
-		{ObservedAt: "2026-09-11T12:00:01Z", MonotonicNS: 11, Operation: "sensor_finalized", Resource: map[string]any{"kernel_reserve": 0, "decode": 0, "queue": 0, "persistence": 0, "counter_read_error": false}, Outcome: Outcome{Status: "success"}},
+		{ObservedAt: "2026-09-11T12:00:01Z", MonotonicNS: 11, Operation: "sensor_finalized", Resource: map[string]any{"kernel_reserve": 0, "kernel_correlation": 0, "decode": 0, "queue": 0, "persistence": 0, "counter_read_error": false}, Outcome: Outcome{Status: "success"}},
 	}
 	var stream bytes.Buffer
 	for _, event := range events {

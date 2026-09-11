@@ -20,9 +20,11 @@ import (
 const (
 	commLength = 16
 	pathLength = 256
+	EventExec  = 1
+	EventOpen  = 2
 )
 
-type ExecEvent struct {
+type KernelEvent struct {
 	MonotonicNS        uint64 `json:"monotonic_ns"`
 	CgroupID           uint64 `json:"cgroup_id"`
 	StartTimeNS        uint64 `json:"start_time_ns"`
@@ -35,6 +37,8 @@ type ExecEvent struct {
 	PIDNamespace       uint32 `json:"pid_namespace"`
 	MountNamespace     uint32 `json:"mount_namespace"`
 	ParentPIDNamespace uint32 `json:"parent_pid_namespace"`
+	Kind               uint32 `json:"kind"`
+	Flags              uint32 `json:"flags"`
 	Command            string `json:"command"`
 	Filename           string `json:"filename"`
 }
@@ -52,14 +56,21 @@ type wireExecEvent struct {
 	PIDNamespace       uint32
 	MountNamespace     uint32
 	ParentPIDNamespace uint32
+	Kind               uint32
+	Flags              uint32
 	Command            [commLength]byte
 	Filename           [pathLength]byte
 }
 
 type Sensor struct {
 	collection *ebpf.Collection
-	tracepoint link.Link
+	links      []link.Link
 	reader     *ringbuf.Reader
+}
+
+type LossCounters struct {
+	RingBuffer  uint64
+	Correlation uint64
 }
 
 func Open(objectPath string, cgroupID uint64) (*Sensor, error) {
@@ -81,38 +92,52 @@ func Open(objectPath string, cgroupID uint64) (*Sensor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load BPF collection: %w", err)
 	}
-	program := collection.Programs["observe_exec"]
-	if program == nil {
-		collection.Close()
-		return nil, errors.New("BPF object lacks observe_exec program")
+	links := make([]link.Link, 0, 3)
+	attach := func(group, name, programName string) error {
+		program := collection.Programs[programName]
+		if program == nil {
+			return fmt.Errorf("BPF object lacks %s program", programName)
+		}
+		attached, attachErr := link.Tracepoint(group, name, program, nil)
+		if attachErr != nil {
+			return fmt.Errorf("attach %s:%s tracepoint: %w", group, name, attachErr)
+		}
+		links = append(links, attached)
+		return nil
 	}
-	attached, err := link.Tracepoint("sched", "sched_process_exec", program, nil)
-	if err != nil {
-		collection.Close()
-		return nil, fmt.Errorf("attach exec tracepoint: %w", err)
+	for _, target := range [][3]string{
+		{"sched", "sched_process_exec", "observe_exec"},
+		{"syscalls", "sys_enter_openat", "observe_openat_enter"},
+		{"syscalls", "sys_exit_openat", "observe_openat_exit"},
+	} {
+		if err := attach(target[0], target[1], target[2]); err != nil {
+			closeLinks(links)
+			collection.Close()
+			return nil, err
+		}
 	}
 	events := collection.Maps["events"]
 	if events == nil {
-		attached.Close()
+		closeLinks(links)
 		collection.Close()
 		return nil, errors.New("BPF object lacks events map")
 	}
 	reader, err := ringbuf.NewReader(events)
 	if err != nil {
-		attached.Close()
+		closeLinks(links)
 		collection.Close()
 		return nil, fmt.Errorf("open events ring buffer: %w", err)
 	}
-	return &Sensor{collection: collection, tracepoint: attached, reader: reader}, nil
+	return &Sensor{collection: collection, links: links, reader: reader}, nil
 }
 
-func (sensor *Sensor) Read(ctx context.Context) (ExecEvent, error) {
+func (sensor *Sensor) Read(ctx context.Context) (KernelEvent, error) {
 	if sensor == nil || sensor.reader == nil {
-		return ExecEvent{}, errors.New("sensor is not open")
+		return KernelEvent{}, errors.New("sensor is not open")
 	}
 	for {
 		if err := ctx.Err(); err != nil {
-			return ExecEvent{}, err
+			return KernelEvent{}, err
 		}
 		deadline := time.Now().Add(250 * time.Millisecond)
 		if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
@@ -124,26 +149,31 @@ func (sensor *Sensor) Read(ctx context.Context) (ExecEvent, error) {
 			continue
 		}
 		if err != nil {
-			return ExecEvent{}, err
+			return KernelEvent{}, err
 		}
-		return decodeExec(record.RawSample)
+		return decodeEvent(record.RawSample)
 	}
 }
 
-func decodeExec(raw []byte) (ExecEvent, error) {
+func decodeEvent(raw []byte) (KernelEvent, error) {
 	var wire wireExecEvent
 	if len(raw) != binary.Size(wire) {
-		return ExecEvent{}, fmt.Errorf("exec sample has size %d, expected %d", len(raw), binary.Size(wire))
+		return KernelEvent{}, fmt.Errorf("kernel sample has size %d, expected %d", len(raw), binary.Size(wire))
 	}
 	if err := binary.Read(bytes.NewReader(raw), binary.LittleEndian, &wire); err != nil {
-		return ExecEvent{}, fmt.Errorf("decode exec sample: %w", err)
+		return KernelEvent{}, fmt.Errorf("decode kernel sample: %w", err)
 	}
-	return ExecEvent{
+	if wire.Kind != EventExec && wire.Kind != EventOpen {
+		return KernelEvent{}, fmt.Errorf("unsupported kernel event kind %d", wire.Kind)
+	}
+	return KernelEvent{
 		MonotonicNS: wire.MonotonicNS, CgroupID: wire.CgroupID,
 		StartTimeNS: wire.StartTimeNS, ParentStartTimeNS: wire.ParentStartTimeNS,
 		PID: wire.PID, TGID: wire.TGID, PPID: wire.PPID, UID: wire.UID, GID: wire.GID,
 		PIDNamespace: wire.PIDNamespace, MountNamespace: wire.MountNamespace,
 		ParentPIDNamespace: wire.ParentPIDNamespace,
+		Kind:               wire.Kind,
+		Flags:              wire.Flags,
 		Command:            cString(wire.Command[:]), Filename: cString(wire.Filename[:]),
 	}, nil
 }
@@ -155,23 +185,34 @@ func cString(value []byte) string {
 	return string(value)
 }
 
-func (sensor *Sensor) Loss() (uint64, error) {
+func (sensor *Sensor) Loss() (LossCounters, error) {
 	if sensor == nil || sensor.collection == nil {
-		return 0, errors.New("sensor is not open")
+		return LossCounters{}, errors.New("sensor is not open")
 	}
-	lossMap := sensor.collection.Maps["ringbuf_drops"]
-	if lossMap == nil {
-		return 0, errors.New("BPF object lacks loss map")
+	read := func(name string) (uint64, error) {
+		lossMap := sensor.collection.Maps[name]
+		if lossMap == nil {
+			return 0, fmt.Errorf("BPF object lacks %s map", name)
+		}
+		var perCPU []uint64
+		if err := lossMap.Lookup(uint32(0), &perCPU); err != nil {
+			return 0, fmt.Errorf("read %s: %w", name, err)
+		}
+		var total uint64
+		for _, value := range perCPU {
+			total += value
+		}
+		return total, nil
 	}
-	var perCPU []uint64
-	if err := lossMap.Lookup(uint32(0), &perCPU); err != nil {
-		return 0, fmt.Errorf("read ring-buffer loss: %w", err)
+	ring, err := read("ringbuf_drops")
+	if err != nil {
+		return LossCounters{}, err
 	}
-	var total uint64
-	for _, value := range perCPU {
-		total += value
+	correlation, err := read("correlation_drops")
+	if err != nil {
+		return LossCounters{}, err
 	}
-	return total, nil
+	return LossCounters{RingBuffer: ring, Correlation: correlation}, nil
 }
 
 func (sensor *Sensor) Close() error {
@@ -182,11 +223,17 @@ func (sensor *Sensor) Close() error {
 	if sensor.reader != nil {
 		result = errors.Join(result, sensor.reader.Close())
 	}
-	if sensor.tracepoint != nil {
-		result = errors.Join(result, sensor.tracepoint.Close())
-	}
+	result = errors.Join(result, closeLinks(sensor.links))
 	if sensor.collection != nil {
 		sensor.collection.Close()
+	}
+	return result
+}
+
+func closeLinks(links []link.Link) error {
+	var result error
+	for _, attached := range links {
+		result = errors.Join(result, attached.Close())
 	}
 	return result
 }

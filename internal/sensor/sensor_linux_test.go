@@ -23,6 +23,7 @@ func TestDecodeExec(t *testing.T) {
 		PIDNamespace:       7,
 		MountNamespace:     8,
 		ParentPIDNamespace: 6,
+		Kind:               EventExec,
 	}
 	copy(wire.Command[:], "compiler")
 	copy(wire.Filename[:], "/usr/bin/cc")
@@ -31,7 +32,7 @@ func TestDecodeExec(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	event, err := decodeExec(encoded.Bytes())
+	event, err := decodeEvent(encoded.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,9 +46,20 @@ func TestDecodeExec(t *testing.T) {
 }
 
 func TestDecodeExecRejectsWrongSize(t *testing.T) {
-	_, err := decodeExec(make([]byte, binary.Size(wireExecEvent{})-1))
+	_, err := decodeEvent(make([]byte, binary.Size(wireExecEvent{})-1))
 	if err == nil || !strings.Contains(err.Error(), "expected") {
 		t.Fatalf("expected bounded-size error, got %v", err)
+	}
+}
+
+func TestDecodeEventRejectsUnknownKind(t *testing.T) {
+	wire := wireExecEvent{Kind: 99}
+	var encoded bytes.Buffer
+	if err := binary.Write(&encoded, binary.LittleEndian, wire); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decodeEvent(encoded.Bytes()); err == nil {
+		t.Fatal("expected unknown event kind rejection")
 	}
 }
 

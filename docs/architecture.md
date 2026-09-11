@@ -27,8 +27,9 @@ SLSA provenance <------ evidence manifest ------> Runtime Trace v0.1
 ```
 
 Solid implementation currently includes the fixture correlation path plus a tested
-cgroup-filtered exec sensor and canonical single-writer collector. Artifact finalization from
-a monitored build and Sigstore verification remain target components.
+cgroup-filtered exec/write-open sensor and canonical single-writer collector. Exact-path artifact
+finalization is implemented; provenance assembly from this privileged path and Sigstore
+verification remain target components.
 
 ## Components
 
@@ -45,8 +46,9 @@ network, namespace, process-start-time, or build-nonce attribution yet.
 `cmd/rpf-sensor` loads the CO-RE object using `cilium/ebpf`, rewrites the target cgroup constant,
 attaches the tracepoint, and defensively decodes fixed-size records. It constructs composite
 process/parent keys, writes canonical hash-chained lifecycle and exec events through one
-exclusive append writer, syncs each record, and finalizes the loss count. Authenticating build
-registration, artifact events, and privilege separation remain.
+exclusive append writer, syncs each record, correlates successful write-intent `openat` events,
+and finalizes an exact-path artifact digest plus loss counts. Authenticating build registration,
+resolved-path coverage, and privilege separation remain.
 
 ### Evidence and graph core (implemented for fixtures)
 

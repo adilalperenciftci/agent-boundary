@@ -230,11 +230,12 @@ func lossFromFinalEvent(event Event) Loss {
 		return Loss{CounterReadError: true}
 	}
 	return Loss{
-		KernelReserve:    uintResource(event.Resource, "kernel_reserve"),
-		Decode:           uintResource(event.Resource, "decode"),
-		Queue:            uintResource(event.Resource, "queue"),
-		Persistence:      uintResource(event.Resource, "persistence"),
-		CounterReadError: boolResource(event.Resource, "counter_read_error"),
+		KernelReserve:     uintResource(event.Resource, "kernel_reserve"),
+		KernelCorrelation: uintResource(event.Resource, "kernel_correlation"),
+		Decode:            uintResource(event.Resource, "decode"),
+		Queue:             uintResource(event.Resource, "queue"),
+		Persistence:       uintResource(event.Resource, "persistence"),
+		CounterReadError:  boolResource(event.Resource, "counter_read_error"),
 	}
 }
 
