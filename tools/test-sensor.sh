@@ -62,7 +62,9 @@ while [ ! -f "$ready" ] && [ "$attempt" -lt 50 ]; do
 done
 test -f "$ready"
 /usr/bin/whoami >/dev/null
-"$enter" --cgroup "$fixture_cgroup" -- /usr/bin/id
+identity=$("$enter" --cgroup "$fixture_cgroup" -- /usr/bin/id)
+test "$identity" = 'uid=65534(nobody) gid=65534(nogroup) groups=65534(nogroup)'
+printf '%s\n' "$identity"
 "$enter" --cgroup "$fixture_cgroup" -- /bin/echo rpf-synthetic-exec
 "$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c 'printf rpf-artifact-v1 > "$1"' sh "$artifact"
 "$enter" --cgroup "$fixture_cgroup" -- "$callback" --address 127.0.0.1:18082

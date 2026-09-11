@@ -79,6 +79,10 @@ race process exit. The test therefore requires `complete` when the counter is ze
 remain mandatory in both cases. The benign UID-dropped baseline separately requires all counters
 to remain zero and `ALLOW`.
 
+`tools/test-cgroup-enter.sh` repeats the complete cgroup-entry, supplementary-group clearing,
+UID/GID drop, and exec transition 100 times and requires exact `id` output. This permanently
+regresses the Linux per-thread credential race found during the full-suite review.
+
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.

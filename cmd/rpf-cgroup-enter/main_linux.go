@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,10 @@ import (
 const labUID = 65534
 
 func main() {
+	// Linux credentials are per-thread. Keep the cgroup move, credential changes,
+	// and exec on one OS thread so the Go scheduler cannot restore a privileged
+	// thread between those operations.
+	runtime.LockOSThread()
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

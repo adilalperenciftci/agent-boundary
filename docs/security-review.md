@@ -38,7 +38,10 @@ parser safety.
 The lab originally placed root build processes beside a root collector; cgroup membership alone
 does not restrict filesystem access. Build commands now enter the monitored cgroup through a
 fixed helper, set `no_new_privs`, clear supplementary groups, drop to UID/GID 65534, and receive no
-host environment values. A real append to the collector's 0600 evidence file is denied. Repeated
+host environment values. A full-suite rerun exposed a Go thread-credential race that intermittently
+retained supplementary group 0; locking the helper to one OS thread before credential changes and
+requiring exact `id` output fixed the observed path. A real append to the collector's 0600 evidence
+file is denied. Repeated
 runs observed correlation-loss counts of zero and one: strict verification requires complete
 evidence for zero, and `incomplete` plus `RPF-EVIDENCE-001` for non-zero. Either path retains the
 behavioral `REJECT`. This isolates the synthetic build from ordinary collector files but not from

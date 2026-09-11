@@ -87,9 +87,11 @@ if [ ! -f "$ready" ]; then
 fi
 "$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c \
   'if printf tamper >> "$1" 2>/dev/null; then exit 90; fi' sh "/src/$evidence"
-"$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c \
+identity=$("$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c \
   'IFS= read -r ignored < "$1"; /usr/bin/id; printf rpf-adversarial-artifact > "$2"' \
-  sh "$credential" "$artifact"
+  sh "$credential" "$artifact")
+test "$identity" = 'uid=65534(nobody) gid=65534(nogroup) groups=65534(nogroup)'
+printf '%s\n' "$identity"
 "$enter" --cgroup "$fixture_cgroup" -- "$renamed" -c 'IFS= read -r ignored < "$1"' \
   sh "$credential"
 "$enter" --cgroup "$fixture_cgroup" -- "$callback" --address 127.0.0.1:18080

@@ -13,8 +13,10 @@ modify root-owned evidence or inherit unrelated host environment values.
 `rpf-cgroup-enter` is a Linux-only lab helper. While root, it verifies the disposable
 `/sys/fs/cgroup/rpf-*` target and moves itself into it. It then sets `no_new_privs`, clears
 supplementary groups, drops to UID/GID 65534, supplies only `HOME`, `LANG`, `PATH`, and a lab marker,
-and execs an absolute target. Artifacts are pre-created for that UID; evidence remains root-owned
-0600. The adversarial fixture must fail a real evidence append attempt.
+and execs an absolute target. Because Linux credentials are thread-scoped, the helper locks its
+goroutine to one OS thread before any of these operations. Artifacts are pre-created for that UID;
+evidence remains root-owned 0600. Tests require exact UID/GID/group output, and the adversarial
+fixture must fail a real evidence append attempt.
 
 ## Consequences
 
