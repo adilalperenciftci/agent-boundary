@@ -1,69 +1,107 @@
-# Agent Boundary
+# Runtime Provenance Firewall
 
-Agent Boundary is a local decision-point security engine for AI-agent and MCP tool calls. It turns bounded, versioned tool-call events into deterministic `allow`, `review`, or `deny` decisions and records redacted evidence in a hash-chained ledger.
+Runtime Provenance Firewall is a security research project about one question: can evidence of
+what a software build did at runtime be cryptographically bound to the artifact and provenance
+that claim to describe that build?
 
-The problem is not only malicious text. Agentic failures occur when untrusted influence reaches a privileged sink: a credential is placed in an outbound call, an unchanged-looking tool gains authority, or individually ordinary calls compose into an unsafe action. General application logs rarely retain the trust, destination, approval, and catalog context needed to explain that boundary crossing.
+SLSA provenance identifies source, builder, declared inputs, and artifact digests. It does not
+normally state which child processes executed, whether an install script opened a credential
+location, or which network destinations were contacted. Linux runtime tools observe much of
+that behavior, but observation alone does not prove that a trace, artifact, provenance
+statement, CI run, and policy belong to the same execution.
 
-The current vertical slice detects secret-like values in tool arguments and structurally unapproved HTTP destinations. It rejects malformed/ambiguous events, redacts secret material before persistence, and verifies ledger modification or reordering.
+This project studies that correlation and verification gap. It is not another general syscall
+logger and does not claim to replace SLSA, in-toto, Sigstore, Tetragon, Tracee, Falco, or
+cicd-sensor.
 
-## Security model
+## Current state
 
-The engine is useful inline only when an authenticated adapter calls it before tool execution and enforces the result. In post-execution pipelines it is a detection and forensic component. An `allow` means no configured rule required intervention; it is not proof that an action is safe.
+The repository contains a tested, platform-independent first vertical slice:
 
-Hash chaining detects modification within a ledger segment. It does not prevent deletion, valid-prefix rollback, or forgery by a host administrator. Producer trust labels are claims unless an adapter binds them to an authenticated identity.
-
-See [threat model](docs/threat-model.md), [security invariants](docs/security-invariants.md), and [architecture](docs/architecture.md).
-
-## Install
-
-Python 3.12 or newer is required.
-
-```console
-python -m venv .venv
-.venv\Scripts\python -m pip install -e .
+```text
+synthetic canonical runtime events
+        -> verified event chain and loss state
+        -> deterministic execution graph
+        -> artifact digest commitment
+        -> in-toto Runtime Trace v0.1 correlation extension
+        -> SLSA v1 identity/digest equality checks
+        -> deterministic policy
+        -> ALLOW / REVIEW / REJECT
 ```
 
-For development, use `uv sync --extra dev --locked` with the committed lock file.
+This slice uses synthetic events and has assurance level `fixture`. It does **not** yet collect
+kernel telemetry or verify Sigstore signatures. `verify-fixture` is named to prevent unsigned
+fixture verification from being confused with the later strict signed verifier.
 
-## Reproducible local demo
+Implemented invariants include:
 
-All fixtures use reserved `.test` domains and synthetic credentials. No network request is made.
+- artifact bytes must match provenance, evidence, and Runtime Trace subjects;
+- build and CI run identity must agree across runtime evidence and SLSA provenance;
+- event order and hash-chain integrity must verify;
+- execution graph and evidence manifest are recomputed, not trusted;
+- non-zero or unknown event loss cannot produce `ALLOW`;
+- missing artifact-finalization/process attribution fails closed;
+- policy findings carry stable machine-readable reason codes.
 
-```console
-agent-boundary evaluate --input fixtures/benign/approved-call.json --policy policy/example.json --ledger out/events.jsonl
-agent-boundary evaluate --input fixtures/suspicious/secret-egress.json --policy policy/example.json --ledger out/events.jsonl
-agent-boundary verify-ledger --ledger out/events.jsonl
-```
+## Reproduce the current slice
 
-Exit codes are `0` allow, `2` review, `3` deny, and `4` validation or operational failure. The suspicious fixture returns deny, so shells may display a non-zero status by design.
-
-## Architecture
-
-An adapter supplies a bounded JSON event. Strict validation and URI normalization occur before deterministic rules. Evidence is redacted, canonicalized, and appended to a single-writer JSONL ledger. The standard-library runtime has no third-party dependencies.
-
-OpenTelemetry-compatible names are an export concern; raw arguments are not exported by default. The local ledger remains authoritative because collectors can sample or transform telemetry.
-
-## Deliberate exclusions
-
-- No prompt-injection text classifier
-- No transparent MCP/OAuth proxy yet
-- No tool sandbox or credential broker
-- No claim of tamper-proof storage
-- No external scanning or third-party targets
-
-## Test and assurance
+Go 1.27 or newer is required for the Go research core. Python 3.12 and `uv` remain temporarily
+required for the original decision-engine tests while that code is migrated or retired.
 
 ```console
-uv run ruff check .
-uv run pyright
-uv run python -m unittest discover -s tests -v
-uv run python tools/validate_rules.py
-uv run bandit -q -r src
-uv run pip-audit
+go test ./...
+go vet ./...
+uv run --extra dev --locked ruff check .
+uv run --extra dev --locked pyright
+uv run --locked python -m unittest discover -s tests -v
 ```
 
-The fixtures establish only repository test behavior. No production detection-rate or performance claims are published. See [testing strategy](docs/testing-strategy.md).
+The disk round-trip demonstration is:
 
-## Limitations and roadmap
+```console
+go test ./internal/rpf -run TestBundleDiskRoundTrip -v
+```
 
-The ledger currently requires one writer, destination checks do not observe DNS resolution or redirects, format detectors can miss or misclassify secrets, and provenance is adapter-supplied. Next work is tool-catalog digest continuity bound to decisions, then session-level read-to-egress correlation. Multi-writer durability and external ledger checkpoints precede daemon deployment.
+The test constructs synthetic build evidence, writes the graph/manifest/Runtime Trace bundle,
+reloads it through strict parsers, recomputes every binding, and requires `ALLOW`. Adjacent
+tests alter the artifact and manifest, inject event loss, and emulate forbidden sensitive-file
+access and localhost egress; those paths must reject.
+
+## Intended architecture
+
+The selected target is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto
+Runtime Trace plus SLSA provenance, standard Sigstore bundles, and a portable fail-closed
+verifier. The sensor will filter by cgroup and emit only semantically useful execution,
+sensitive-file, output-file, network, privilege, lifecycle, and loss events.
+
+The build cgroup is treated as adversarial. The monitor must start outside it. A root-equivalent
+host attacker that can disable kernel telemetry and reach signing authority is explicitly not
+solved.
+
+See [architecture](docs/architecture.md), [threat model](docs/threat-model.md),
+[trust model](docs/trust-model.md), and the
+[2026 landscape review](docs/research/landscape-2026.md).
+
+## Research result so far
+
+The original broad thesis was narrowed after source-level review. `cicd-sensor` already
+provides CI-focused eBPF telemetry, ancestry-aware detection, loss counters, and Runtime Trace
+predicate output. The remaining hypothesis is whether a loss-aware verification profile can
+prove all required artifact/evidence/provenance/CI identity equalities without silently
+reconciling missing data. See the [gap analysis](docs/research/runtime-attestation-gap.md).
+
+## Limits
+
+- No kernel sensor has been implemented or validated yet.
+- No signature or transparency-log verification is implemented yet.
+- Runtime Trace v0.1 is experimental and monitor event fields are not standardized.
+- Async eBPF cannot prove atomic file-content identity at access time.
+- Process/file observations establish documented edges, not semantic causation.
+- No performance, detection-rate, SLSA level, or production-readiness claim is made.
+
+All adversarial work is restricted to synthetic fixtures, localhost, repository-controlled
+containers/VMs, and explicitly authorized systems. See [SECURITY.md](SECURITY.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
