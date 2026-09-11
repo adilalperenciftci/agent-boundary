@@ -8,10 +8,13 @@ provenance=${4:-build/out/sensor-test-provenance.json}
 policy=${5:-lab/kernel/policy.json}
 malformed=build/out/provenance.malformed.json
 wrong_digest=build/out/provenance.wrong-digest.json
+unauthorized_builder=build/out/provenance.unauthorized-builder.json
+unauthorized_repository=build/out/provenance.unauthorized-repository.json
 output=build/out/negative-attestation-bundle
+decision=build/out/negative-attestation-decision.json
 
 cleanup() {
-  rm -f "$malformed" "$wrong_digest"
+  rm -f "$malformed" "$wrong_digest" "$unauthorized_builder" "$unauthorized_repository" "$decision"
   rm -rf "$output"
 }
 trap cleanup EXIT INT TERM
@@ -32,4 +35,25 @@ status=0
 test "$status" -eq 4
 test ! -e "$output"
 
-printf '%s\n' '{"malformed_provenance":"REJECTED","wrong_artifact_digest":"REJECTED"}'
+sed 's#https://github.com/adilalperenciftci/agent-boundary/builders/local-fixture/v0.1#https://attacker.example/builder#g' \
+  "$provenance" >"$unauthorized_builder"
+"$validator" assemble --artifact "$artifact" --events "$events" --provenance "$unauthorized_builder" \
+  --policy "$policy" --output "$output" >/dev/null
+status=0
+"$validator" verify-fixture --artifact "$artifact" --events "$events" \
+  --provenance "$unauthorized_builder" --policy "$policy" --bundle "$output" >"$decision" || status=$?
+test "$status" -eq 3
+grep -q '"code":"RPF-BUILDER-001"' "$decision"
+rm -rf "$output"
+
+sed 's#https://example.test/agent-boundary#https://attacker.example/repo#g' \
+  "$provenance" >"$unauthorized_repository"
+"$validator" assemble --artifact "$artifact" --events "$events" --provenance "$unauthorized_repository" \
+  --policy "$policy" --output "$output" >/dev/null
+status=0
+"$validator" verify-fixture --artifact "$artifact" --events "$events" \
+  --provenance "$unauthorized_repository" --policy "$policy" --bundle "$output" >"$decision" || status=$?
+test "$status" -eq 3
+grep -q '"code":"RPF-SOURCE-001"' "$decision"
+
+printf '%s\n' '{"malformed_provenance":"REJECTED","wrong_artifact_digest":"REJECTED","unauthorized_builder":"REJECTED","unauthorized_repository":"REJECTED"}'

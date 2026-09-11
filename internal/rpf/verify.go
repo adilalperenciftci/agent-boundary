@@ -184,6 +184,12 @@ func Verify(inputs Inputs, bundle Bundle) (Decision, error) {
 	if identity.RunIdentity.Provider != policy.ExpectedProvider {
 		addReject("RPF-CI-001", "CI provider is not authorized by policy")
 	}
+	if !slices.Contains(policy.AllowedBuilderIDs, identity.BuilderID) {
+		addReject("RPF-BUILDER-001", "provenance builder identity is not authorized by policy")
+	}
+	if !slices.Contains(policy.AllowedRepositories, identity.Source.Repository) {
+		addReject("RPF-SOURCE-001", "source repository identity is not authorized by policy")
+	}
 	reasons = append(reasons, behaviorReasons(events, policy)...)
 	decision := "ALLOW"
 	for _, reason := range reasons {
@@ -219,7 +225,7 @@ func provenanceIdentity(statement Statement) (Correlation, error) {
 	if err := decodeStrict(raw, &identity, maxDocumentBytes); err != nil {
 		return Correlation{}, fmt.Errorf("SLSA build identity: %w", err)
 	}
-	if identity.BuildID == "" || identity.RunIdentity.RunID == "" || identity.Source.Revision == "" {
+	if identity.BuildID == "" || identity.BuilderID == "" || identity.RunIdentity.RunID == "" || identity.Source.Revision == "" {
 		return Correlation{}, errors.New("SLSA build identity is incomplete")
 	}
 	buildType, _ := rawDefinition["buildType"].(string)
@@ -241,7 +247,7 @@ func provenanceIdentity(statement Statement) (Correlation, error) {
 	invocationID, _ := metadata["invocationId"].(string)
 	startedOn, _ := metadata["startedOn"].(string)
 	finishedOn, _ := metadata["finishedOn"].(string)
-	if !builderOK || !metadataOK || builderID == "" || invocationID != identity.RunIdentity.RunID || startedOn == "" || finishedOn == "" {
+	if !builderOK || !metadataOK || builderID != identity.BuilderID || invocationID != identity.RunIdentity.RunID || startedOn == "" || finishedOn == "" {
 		return Correlation{}, errors.New("SLSA run details conflict with build identity")
 	}
 	return identity, nil

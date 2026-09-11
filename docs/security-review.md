@@ -12,6 +12,15 @@ v0.2 fixes this by labelling each parent `observed`, `unobserved`, or `none`; un
 graph assertions cover the distinction. This improves claim precision but does not recover missing
 ancestry or defend against a privileged hostile host.
 
+## Supply-chain reviewer
+
+Interim review found that SLSA `builder.id` was required but not authorized, while repository
+identity was only internally correlated. A consistently forged identity could pass policy if its
+signature key was otherwise trusted. The verifier now binds `runDetails.builder.id` to the runtime
+correlation identity and requires exact policy allowlists for builder and repository. Regression
+tests require `RPF-BUILDER-001` and `RPF-SOURCE-001` rejections. This does not establish OIDC
+workload identity, source VSA validation, or transparency freshness.
+
 ## Controlled malware-behavior experiments
 
 MBE-001 emulates a synthetic credential-file read, child execution, artifact staging, an

@@ -157,6 +157,7 @@ type Statement struct {
 
 type Correlation struct {
 	BuildID              string         `json:"buildId"`
+	BuilderID            string         `json:"builderId"`
 	RunIdentity          RunIdentity    `json:"runIdentity"`
 	Source               SourceIdentity `json:"sourceRevision"`
 	EvidenceManifestHash string         `json:"evidenceManifestDigest"`
@@ -168,6 +169,8 @@ type Correlation struct {
 
 type Policy struct {
 	SchemaVersion                string   `json:"schema_version"`
+	AllowedBuilderIDs            []string `json:"allowed_builder_ids"`
+	AllowedRepositories          []string `json:"allowed_repositories"`
 	AllowedExecutables           []string `json:"allowed_executables"`
 	AllowedNetworkDestinations   []string `json:"allowed_network_destinations"`
 	ForbiddenSensitiveCategories []string `json:"forbidden_sensitive_categories"`

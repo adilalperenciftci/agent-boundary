@@ -46,7 +46,7 @@ func fixtureInputs(t testing.TB, mutate func(*[]Event)) Inputs {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policy := Policy{SchemaVersion: "0.1", AllowedExecutables: []string{"/bin/sh", "/usr/bin/cc"}, AllowedNetworkDestinations: []string{"127.0.0.1:8080"}, ForbiddenSensitiveCategories: []string{"synthetic_credential"}, ExpectedProvider: "local", IncompleteDecision: "REJECT"}
+	policy := Policy{SchemaVersion: "0.1", AllowedBuilderIDs: []string{LocalBuilderID}, AllowedRepositories: []string{"https://example.test/repo"}, AllowedExecutables: []string{"/bin/sh", "/usr/bin/cc"}, AllowedNetworkDestinations: []string{"127.0.0.1:8080"}, ForbiddenSensitiveCategories: []string{"synthetic_credential"}, ExpectedProvider: "local", IncompleteDecision: "REJECT"}
 	policyBytes, err := canonical(policy)
 	if err != nil {
 		t.Fatal(err)
@@ -233,6 +233,71 @@ func TestProvenanceInternalAndExternalRevisionConflictFails(t *testing.T) {
 	if _, err := Assemble(inputs); err == nil {
 		t.Fatal("conflicting source revisions were accepted")
 	}
+}
+
+func TestUnauthorizedBuilderRejects(t *testing.T) {
+	inputs := fixtureInputs(t, nil)
+	statement, err := decodeStatement(inputs.ProvenanceBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := statement.Predicate["buildDefinition"].(map[string]any)
+	identity := definition["internalParameters"].(map[string]any)[BuildIdentityKey].(map[string]any)
+	identity["builderId"] = "https://attacker.example/builder"
+	statement.Predicate["runDetails"].(map[string]any)["builder"].(map[string]any)["id"] = identity["builderId"]
+	inputs.ProvenanceBytes, err = canonical(statement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := Verify(inputs, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Decision != "REJECT" || !hasReason(decision, "RPF-BUILDER-001") {
+		t.Fatalf("unauthorized builder was accepted: %#v", decision)
+	}
+}
+
+func TestUnauthorizedRepositoryRejects(t *testing.T) {
+	inputs := fixtureInputs(t, nil)
+	statement, err := decodeStatement(inputs.ProvenanceBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := statement.Predicate["buildDefinition"].(map[string]any)
+	identity := definition["internalParameters"].(map[string]any)[BuildIdentityKey].(map[string]any)
+	source := identity["sourceRevision"].(map[string]any)
+	source["repository"] = "https://attacker.example/repo"
+	definition["externalParameters"].(map[string]any)["repository"] = source["repository"]
+	definition["resolvedDependencies"].([]any)[0].(map[string]any)["uri"] = source["repository"]
+	inputs.ProvenanceBytes, err = canonical(statement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := Verify(inputs, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Decision != "REJECT" || !hasReason(decision, "RPF-SOURCE-001") {
+		t.Fatalf("unauthorized repository was accepted: %#v", decision)
+	}
+}
+
+func hasReason(decision Decision, code string) bool {
+	for _, reason := range decision.Reasons {
+		if reason.Code == code {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRuntimeEvidenceAndProvenanceBuildReplayFails(t *testing.T) {

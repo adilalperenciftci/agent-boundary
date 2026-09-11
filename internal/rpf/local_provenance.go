@@ -3,6 +3,7 @@ package rpf
 import "errors"
 
 const LocalBuildType = "https://github.com/adilalperenciftci/agent-boundary/build-types/local-fixture/v0.1"
+const LocalBuilderID = "https://github.com/adilalperenciftci/agent-boundary/builders/local-fixture/v0.1"
 
 func CreateLocalFixtureProvenance(artifactName string, artifact []byte, events []Event, repository, revision string) (Statement, error) {
 	if artifactName == "" || len(artifact) == 0 || len(events) == 0 || repository == "" || revision == "" {
@@ -16,6 +17,7 @@ func CreateLocalFixtureProvenance(artifactName string, artifact []byte, events [
 	last := events[len(events)-1]
 	identity := Correlation{
 		BuildID:     first.Build.BuildID,
+		BuilderID:   LocalBuilderID,
 		RunIdentity: RunIdentity{Provider: "local", RunID: first.Build.RunID, Attempt: 1},
 		Source:      SourceIdentity{Repository: repository, Revision: revision},
 	}
@@ -35,7 +37,7 @@ func CreateLocalFixtureProvenance(artifactName string, artifact []byte, events [
 				"resolvedDependencies": []any{map[string]any{"uri": repository, "digest": map[string]any{"gitCommit": revision}}},
 			},
 			"runDetails": map[string]any{
-				"builder":  map[string]any{"id": "https://github.com/adilalperenciftci/agent-boundary/builders/local-fixture/v0.1"},
+				"builder":  map[string]any{"id": LocalBuilderID},
 				"metadata": map[string]any{"invocationId": first.Build.RunID, "startedOn": first.ObservedAt, "finishedOn": last.ObservedAt},
 			},
 		},

@@ -173,5 +173,8 @@ func decodePolicy(raw []byte) (Policy, error) {
 	if policy.IncompleteDecision != "REVIEW" && policy.IncompleteDecision != "REJECT" {
 		return Policy{}, errors.New("incomplete_decision must be REVIEW or REJECT")
 	}
+	if policy.ExpectedProvider == "" || len(policy.AllowedBuilderIDs) == 0 || len(policy.AllowedRepositories) == 0 {
+		return Policy{}, errors.New("provider, builder allowlist, and repository allowlist are required")
+	}
 	return policy, nil
 }

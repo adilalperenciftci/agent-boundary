@@ -9,9 +9,12 @@ The verifier parses SLSA Provenance v1 Statements and a project-namespaced build
 `buildDefinition.internalParameters`. Its local profile requires non-empty build type, external
 parameters, a matching resolved source dependency, builder ID, invocation ID, and start/finish
 timestamps. External source, resolved revision, extension identity, runtime build/run identity,
-and subject digest must agree. Regression tests reject conflicting revisions and provenance
-replayed from another build.
+and subject digest must agree. The builder ID in `runDetails` must equal the namespaced identity,
+then builder and repository must appear in policy allowlists. Regression tests reject conflicting
+revisions, unauthorized-but-internally-consistent builders/repositories, and provenance replayed
+from another build.
 
 `create-local-provenance` exists only for the disposable lab and reports assurance
-`unsigned-local-fixture`. Signature, builder authorization, source VSA, and transparency
-verification are not implemented yet and therefore are not claimed.
+`unsigned-local-fixture`. The offline lab verifies signatures and exact builder/repository policy
+authorization, but source VSA, hosted workload identity, and transparency verification are not
+implemented and therefore are not claimed.
