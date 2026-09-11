@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -11,7 +10,6 @@ from typing import Any, cast
 class SecretMatch:
     path: str
     detector: str
-    fingerprint: str
 
 
 _PATTERNS = (
@@ -38,9 +36,8 @@ def find_secrets(arguments: dict[str, Any]) -> tuple[SecretMatch, ...]:
     matches: list[SecretMatch] = []
     for path, value in _walk(arguments):
         for detector, pattern in _PATTERNS:
-            for match in pattern.finditer(value):
-                fingerprint = hashlib.sha256(match.group(0).encode()).hexdigest()[:16]
-                matches.append(SecretMatch(path, detector, fingerprint))
+            if pattern.search(value):
+                matches.append(SecretMatch(path, detector))
     return tuple(matches)
 
 

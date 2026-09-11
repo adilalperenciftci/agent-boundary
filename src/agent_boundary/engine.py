@@ -86,7 +86,6 @@ def evaluate(event: ToolCallEvent, policy: Policy) -> Evaluation:
                     {
                         "path": match.path,
                         "detector": match.detector,
-                        "fingerprint": match.fingerprint,
                     }
                     for match in secrets
                 ),

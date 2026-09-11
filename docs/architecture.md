@@ -49,7 +49,7 @@ Tool manifests are canonicalized and hashed. An approved catalog digest can be s
 
 Policy is deterministic and data oriented. Rules declare stable IDs, applicable event kinds, required fields, severity, decision effect, and parameters. The initial built-in evaluators are intentionally small. YAML loading is deferred until schema and evaluator semantics are proven; executable Python from rule directories is prohibited.
 
-Secret detection uses named synthetic/known-secret fingerprints and conservative format indicators. Evidence retains the JSON path, detector identifier, and keyed or unkeyed digest prefix as configured, never the matched value. Format-only matches result in review unless policy explicitly raises them to deny.
+Secret detection uses conservative format indicators. Evidence retains only the JSON path and detector identifier, never the matched value or a secret-derived fingerprint. Format-only matches result in review unless policy explicitly raises them to deny.
 
 Egress policy parses destinations structurally. It does not use substring allowlists. Schemes and normalized hosts are matched separately; userinfo, malformed hosts, unexpected ports, and IP literals are explicit policy dimensions.
 

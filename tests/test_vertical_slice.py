@@ -33,6 +33,7 @@ class VerticalSliceTests(unittest.TestCase):
         )
         rendered = json.dumps(result.as_dict())
         self.assertNotIn("sk-proj-", rendered)
+        self.assertNotIn("fingerprint", rendered)
 
     def test_persisted_event_is_redacted(self) -> None:
         event = parse_event(self.event("suspicious/secret-egress.json"))
