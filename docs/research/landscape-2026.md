@@ -83,6 +83,13 @@ Sources: [Cosign](https://github.com/sigstore/cosign),
 [Rekor](https://github.com/sigstore/rekor), and
 [Rekor v2](https://github.com/sigstore/rekor-tiles).
 
+As of the 2026-07-17 Cosign 3.1.2 release, standardized Sigstore bundles are the default and the
+v3 signing path supports Rekor v2 through signing configuration. The local lab pins 3.1.2 and
+uses an empty generated signing configuration with a synthetic self-managed key. Verification
+therefore explicitly skips transparency and proves signature integrity only; production policy
+must not inherit that exception. Cosign v3.0.4 or newer also contains the fix for
+GHSA-whqx-f9j3-ch6m affecting certain older bundle verification paths.
+
 ### SPDX and CycloneDX
 
 SPDX 3.0.1 includes a Build profile modeling build instances, inputs, outputs, tools, agents,

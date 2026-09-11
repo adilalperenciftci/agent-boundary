@@ -18,6 +18,9 @@ Primary specifications and project documentation are listed first. Access was ve
 11. Sigstore. [Verification](https://docs.sigstore.dev/cosign/verifying/verify/).
 12. Sigstore. [Rekor v1](https://github.com/sigstore/rekor).
 13. Sigstore. [Rekor v2](https://github.com/sigstore/rekor-tiles).
+14. Sigstore. [Signing blobs with Cosign](https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
+15. Sigstore. [Cosign v3 releases](https://github.com/sigstore/cosign/releases).
+16. Sigstore. [GHSA-whqx-f9j3-ch6m](https://github.com/sigstore/cosign/security/advisories/GHSA-whqx-f9j3-ch6m).
 14. SPDX. [Specification 3.0.1](https://spdx.github.io/spdx-spec/v3.0.1/).
 15. SPDX. [Build profile](https://spdx.github.io/spdx-spec/v3.0.1/model/Build/Build/).
 16. CycloneDX. [Specification 1.7](https://cyclonedx.org/docs/1.7/json/).

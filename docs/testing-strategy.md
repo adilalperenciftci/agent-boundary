@@ -26,6 +26,12 @@ The same test creates full-structure unsigned local SLSA provenance, assembles R
 manifest commitments, requires an `ALLOW`, modifies the artifact bytes, and requires verifier
 exit status 3 with `RPF-ARTIFACT-001`. This demonstrates correlation and tamper rejection, not
 provenance authenticity or signature verification.
+
+`tools/test-signing.sh` generates a synthetic ephemeral Cosign key, signs exact provenance and
+Runtime Trace bytes into standardized bundles, verifies both against the public key, and requires
+a one-byte statement modification to fail. The private key is removed on exit. The local config
+has no Rekor/TSA services, so this test deliberately does not satisfy production transparency or
+trusted-time requirements.
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.

@@ -5,4 +5,6 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y bpftool clang libbpf-dev llvm \
     && rm -rf /var/lib/apt/lists/*
 
+RUN GOBIN=/usr/local/bin go install github.com/sigstore/cosign/v3/cmd/cosign@v3.1.2
+
 WORKDIR /src

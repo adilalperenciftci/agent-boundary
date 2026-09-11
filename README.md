@@ -79,6 +79,10 @@ zero-loss record. It then creates explicitly unsigned local SLSA v1 provenance, 
 Runtime Trace bundle, requires `ALLOW`, substitutes the artifact, and requires `REJECT`. See
 [kernel support](docs/kernel-support.md) for exact limits.
 
+The lab also signs the Runtime Trace and local provenance with Cosign 3.1.2 standardized bundles
+using a synthetic ephemeral key and verifies byte tampering. Transparency is deliberately absent
+and explicitly bypassed in this local-only test; no keyless identity or Rekor claim is made.
+
 ## Intended architecture
 
 The selected architecture is a narrow BPF CO-RE sensor, a Go collector/graph builder, in-toto

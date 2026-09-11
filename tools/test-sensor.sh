@@ -77,6 +77,7 @@ grep -q '"kind":"artifact_finalized"' "$graph"
 "$validator" verify-fixture --artifact "$artifact" --events "$output" --provenance "$provenance" \
   --policy "$policy" --bundle "$bundle"
 grep -q 'https://in-toto.io/attestation/runtime-trace/v0.1' "$bundle/runtime-trace.json"
+./tools/test-signing.sh "$bundle/runtime-trace.json" "$provenance"
 original=$artifact.original
 cp "$artifact" "$original"
 printf substituted >> "$artifact"
