@@ -352,6 +352,35 @@ func WriteBundle(directory string, bundle Bundle) error {
 	return nil
 }
 
+func WriteCanonicalExclusive(path string, value any) error {
+	raw, err := canonical(value)
+	if err != nil {
+		return err
+	}
+	raw = append(raw, '\n')
+	output, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	cleanup := func() {
+		_ = output.Close()
+		_ = os.Remove(path)
+	}
+	if _, err := output.Write(raw); err != nil {
+		cleanup()
+		return err
+	}
+	if err := output.Sync(); err != nil {
+		cleanup()
+		return err
+	}
+	if err := output.Close(); err != nil {
+		_ = os.Remove(path)
+		return err
+	}
+	return nil
+}
+
 func LoadBundle(directory string) (Bundle, error) {
 	read := func(name string, target any) error {
 		raw, err := os.ReadFile(filepath.Join(directory, name))

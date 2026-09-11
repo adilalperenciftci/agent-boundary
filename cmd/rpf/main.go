@@ -11,7 +11,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fail("usage: rpf <assemble|validate-events|verify-fixture> [options]")
+		fail("usage: rpf <assemble|graph-events|validate-events|verify-fixture> [options]")
 	}
 	switch os.Args[1] {
 	case "assemble":
@@ -20,9 +20,35 @@ func main() {
 		verify(os.Args[2:])
 	case "validate-events":
 		validateEvents(os.Args[2:])
+	case "graph-events":
+		graphEvents(os.Args[2:])
 	default:
 		fail("unknown command %q", os.Args[1])
 	}
+}
+
+func graphEvents(arguments []string) {
+	set := flag.NewFlagSet("graph-events", flag.ContinueOnError)
+	eventPath := set.String("events", "", "canonical event JSONL")
+	outputPath := set.String("output", "", "new canonical execution graph file")
+	if err := set.Parse(arguments); err != nil {
+		fail("%v", err)
+	}
+	if *eventPath == "" || *outputPath == "" {
+		fail("--events and --output are required")
+	}
+	raw, err := os.ReadFile(*eventPath)
+	if err != nil {
+		fail("read events: %v", err)
+	}
+	graph, err := rpf.BuildGraphFromStream(raw)
+	if err != nil {
+		fail("build graph: %v", err)
+	}
+	if err := rpf.WriteCanonicalExclusive(*outputPath, graph); err != nil {
+		fail("write graph: %v", err)
+	}
+	printJSON(map[string]any{"written": true, "output": *outputPath, "nodes": len(graph.Nodes), "edges": len(graph.Edges)})
 }
 
 func validateEvents(arguments []string) {

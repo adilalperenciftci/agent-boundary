@@ -5,6 +5,7 @@ object=${1:-build/out/rpf-sensor.bpf.o}
 binary=${2:-build/out/rpf-sensor}
 output=${3:-build/out/sensor-test.jsonl}
 validator=${4:-build/out/rpf}
+graph=${5:-build/out/sensor-test-graph.json}
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
 fi
@@ -18,6 +19,7 @@ cgroup_id=$(stat -c %i "$fixture_cgroup")
 boot_id=$(cat /proc/sys/kernel/random/boot_id)
 cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' ' -f 1)
 rm -f "$output"
+rm -f "$graph"
 
 status=0
 timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" \
@@ -44,6 +46,10 @@ fi
 grep -q '"kernel_reserve":0' "$output"
 grep -q '"operation":"sensor_finalized"' "$output"
 "$validator" validate-events --events "$output"
+"$validator" graph-events --events "$output" --output "$graph"
+grep -q '"executable":"/usr/bin/id"' "$graph"
+grep -q '"executable":"/bin/echo"' "$graph"
+grep -q '"kind":"observed_exec_parent"' "$graph"
 before=$(sha256sum "$output")
 if "$binary" --object "$object" --cgroup-id "$cgroup_id" \
   --build-id rpf-sensor-smoke --run-id local-container-smoke --boot-id "$boot_id" \

@@ -1,5 +1,9 @@
 # Execution graph
 
+`rpf graph-events` now reconstructs the deterministic graph directly from a strictly validated
+canonical stream and creates a new canonical graph file without overwriting an existing one.
+The privileged sensor smoke test exercises this path with real exec telemetry.
+
 The graph is a deterministic projection of verified events, not a separate source of truth.
 Nodes use composite process keys. Edges state only what the event supports:
 

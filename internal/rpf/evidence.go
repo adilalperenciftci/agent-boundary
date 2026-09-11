@@ -175,6 +175,14 @@ func BuildGraph(events []Event) (ExecutionGraph, error) {
 	return ExecutionGraph{SchemaVersion: "0.1", BuildID: events[0].Build.BuildID, Nodes: nodes, Edges: edges}, nil
 }
 
+func BuildGraphFromStream(raw []byte) (ExecutionGraph, error) {
+	events, err := ParseEventStream(raw)
+	if err != nil {
+		return ExecutionGraph{}, err
+	}
+	return BuildGraph(events)
+}
+
 func resourceIdentity(event Event) string {
 	if value, ok := event.Resource["category"].(string); ok {
 		return "category:" + value

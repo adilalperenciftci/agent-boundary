@@ -2,6 +2,8 @@ package rpf
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -32,6 +34,28 @@ func TestEventChainProducesParseableCanonicalStream(t *testing.T) {
 	if len(parsed) != 2 || parsed[0].Sequence != 1 || parsed[1].Sequence != 2 ||
 		parsed[1].Integrity.PreviousEventHash != parsed[0].Integrity.EventHash {
 		t.Fatalf("unexpected parsed chain: %+v", parsed)
+	}
+}
+
+func TestWriteCanonicalExclusiveRefusesReplacement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "graph.json")
+	value := ExecutionGraph{SchemaVersion: "0.1", BuildID: "build-1"}
+	if err := WriteCanonicalExclusive(path, value); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteCanonicalExclusive(path, ExecutionGraph{BuildID: "attacker"}); err == nil {
+		t.Fatal("expected existing output rejection")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("existing canonical output changed")
 	}
 }
 
