@@ -52,6 +52,12 @@ changing a retained byte must fail event parsing because sequence/hash commitmen
 verify. These tests demonstrate fail-closed handling; they do not make an unsigned stream
 authentic or detect rollback to a separately checkpointed older complete stream.
 
+`tools/test-attestation-negative.sh` exercises the actual CLI with malformed provenance and a
+provenance subject carrying the wrong artifact digest; assembly must fail before writing a bundle.
+The offline Cosign test additionally requires rejection of changed attestation bytes, malformed
+substitute bytes, and a valid bundle checked under an unrelated laboratory public key. Private
+keys and the unrelated public key are removed after the run; all credentials are synthetic.
+
 The same script runs EXP-001 twice with byte-identical authorization claims: explicitly vulnerable
 mode must grant the synthetic marker and patched mode must deny it. Both proof processes and
 loopback attempts must appear in telemetry. This is a complete local exploit/patch path, while the

@@ -54,6 +54,12 @@ valid hash-chain prefix, so the lifecycle invariant—not the chain—forces `un
 and strict `REJECT`. A signed external checkpoint remains necessary to detect rollback to another
 complete historical stream.
 
+The signing path rejects modified or malformed attestation bytes and rejects a genuine bundle
+under an unrelated generated public key. Separately, the verifier CLI rejects malformed SLSA
+provenance and a provenance subject with a wrong artifact digest without creating an output
+bundle. This demonstrates local fixture rejection, not keyless identity or transparency-log
+verification; the current lab intentionally uses an offline key and skips tlog verification.
+
 ## Exploit-to-telemetry correlation
 
 For MBE-001, the non-exploit chain is: fixture shell input → successful `openat` → kernel
