@@ -8,9 +8,15 @@ validator=${4:-build/out/rpf}
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
 fi
-cgroup_id=$(stat -c %i /sys/fs/cgroup)
+fixture_cgroup=/sys/fs/cgroup/rpf-sensor-test-$$
+mkdir "$fixture_cgroup"
+cleanup() {
+  rmdir "$fixture_cgroup" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+cgroup_id=$(stat -c %i "$fixture_cgroup")
 boot_id=$(cat /proc/sys/kernel/random/boot_id)
-cgroup_path_hash=sha256:$(sha256sum /proc/self/cgroup | cut -d ' ' -f 1)
+cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' ' -f 1)
 rm -f "$output"
 
 status=0
@@ -19,8 +25,9 @@ timeout --signal=INT 4 "$binary" --object "$object" --cgroup-id "$cgroup_id" \
   --cgroup-path-hash "$cgroup_path_hash" --output "$output" &
 sensor_pid=$!
 sleep 1
-/usr/bin/id >/dev/null
-/bin/echo rpf-synthetic-exec >/dev/null
+/usr/bin/whoami >/dev/null
+/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /usr/bin/id >/dev/null' sh "$fixture_cgroup"
+/bin/sh -c 'echo $$ > "$1/cgroup.procs"; exec /bin/echo rpf-synthetic-exec >/dev/null' sh "$fixture_cgroup"
 wait "$sensor_pid" || status=$?
 
 if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 130 ]; then
@@ -30,6 +37,10 @@ fi
 grep -q '"operation":"sensor_started"' "$output"
 grep -q '"path":"/usr/bin/id"' "$output"
 grep -q '"path":"/bin/echo"' "$output"
+if grep -q '"path":"/usr/bin/whoami"' "$output"; then
+  echo "sensor admitted an executable outside the target cgroup" >&2
+  exit 1
+fi
 grep -q '"kernel_reserve":0' "$output"
 grep -q '"operation":"sensor_finalized"' "$output"
 "$validator" validate-events --events "$output"

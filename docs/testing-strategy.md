@@ -10,11 +10,12 @@ No false-positive or false-negative rate is reported from these curated fixtures
 
 ## Privileged sensor tests
 
-`tools/test-sensor.sh` runs only in a disposable privileged Linux environment. It scopes the
-sensor to the test container's cgroup, executes fixed `/usr/bin/id` and `/bin/echo` fixtures,
-and requires both records plus `sensor_finalized=true`. It also requires `ringbuf_drops=0`;
-therefore a lossy run cannot pass as clean. This is an attachment and delivery smoke test, not
-evidence that unrelated cgroups are excluded under every namespace arrangement.
+`tools/test-sensor.sh` runs only in a disposable privileged Linux environment. The sensor stays
+outside a temporary fixture cgroup. Fixed `/usr/bin/id` and `/bin/echo` processes move into that
+cgroup before exec and must be present, while a `/usr/bin/whoami` control executed in the sensor's
+cgroup must be absent. The test also requires `sensor_finalized=true` and `ringbuf_drops=0`, so a
+lossy run cannot pass as clean. This proves exact-ID filtering in the tested namespace layout,
+not exclusion under every cgroup namespace/delegation arrangement or inclusion of nested cgroups.
 
 The smoke test passes the resulting stream through `rpf validate-events`, then attempts to reuse
 the same evidence path. The second collector must fail and the file digest must remain unchanged.

@@ -27,6 +27,11 @@ delegation, nested cgroups, or namespace presentation can invalidate naive attri
 future registrar must bind cgroup ID to boot ID, cgroup path digest, build nonce, and monitoring
 interval as required by ADR 0005.
 
+Filtering currently uses exact cgroup ID equality. Descendant cgroups are not automatically in
+scope. The privileged smoke test keeps the collector outside a disposable target cgroup and
+verifies one parent-cgroup control exec is excluded, but it does not establish namespace-wide
+noninterference.
+
 `sched_process_exec` reports successful exec transitions. The current record includes kernel
 start time plus active PID and mount namespace inode numbers; these are attribution inputs, not
 proof of semantic causation. It does not report failed attempts, interpreted script content,
