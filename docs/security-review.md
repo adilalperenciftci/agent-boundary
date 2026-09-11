@@ -88,6 +88,12 @@ sensitive-path finding. Telemetry observed the renamed executable, detection emi
 `RPF-SENSITIVE-001`, and policy remained `REJECT`. This tests one representation change only and
 does not establish general evasion resistance.
 
+Kernel review found that a sensitive path opened with write flags was previously classified as a
+generic write before sensitive-path matching. Sensitive equality now has precedence. A writable
+synthetic credential copy is opened with `O_RDWR` in both adversarial builds; all three sensitive
+opens retain `RPF-SENSITIVE-001`. This fixes that representation bypass without treating every
+write as credential access.
+
 The same numeric-connect signal is exercised negatively and positively: undeclared ports 18080
 and 18081 produce `RPF-EGRESS-001`, while policy-declared port 18082 remains finding-free in the
 benign baseline. This validates exact endpoint semantics only, not domain, proxy, or IPv6 handling.

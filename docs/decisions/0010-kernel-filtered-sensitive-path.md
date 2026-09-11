@@ -14,6 +14,8 @@ Rewrite one bounded absolute sensitive path into BPF read-only configuration. Th
 entry/exit correlator tracks it only on exact user-path equality and emits a successful-open event.
 Userspace replaces the raw path with a configured category, binds a hash of the path and category
 into sensor configuration identity, and never reads or records file content.
+Sensitive-path equality takes precedence over generic write-open classification, so `O_RDWR` does
+not erase the security category. The lab permanently exercises both `O_RDONLY` and `O_RDWR`.
 
 ## Consequences
 

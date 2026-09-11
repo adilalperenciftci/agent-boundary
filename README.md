@@ -74,8 +74,8 @@ access and localhost egress; those paths must reject.
 
 The privileged sensor smoke test requires Docker on a Linux kernel with cgroup v2, BTF, tracefs,
 and BPF loading privilege. Run `./tools/kernel-lab.sh`; it builds the checked-in lab image and
-requires two expected exec records, a valid canonical chain, overwrite refusal, and a finalized
-zero-loss record. It then creates explicitly unsigned local SLSA v1 provenance, assembles the
+requires scoped exec/file/network records, a valid canonical chain, overwrite refusal, and a
+finalized zero-loss record. It then creates explicitly unsigned local SLSA v1 provenance, assembles the
 Runtime Trace bundle, requires `ALLOW`, substitutes the artifact, and requires `REJECT`. See
 [kernel support](docs/kernel-support.md) for exact limits.
 
@@ -127,14 +127,15 @@ reconciling missing data. See the [gap analysis](docs/research/runtime-attestati
 
 ## Limits
 
-- Kernel validation currently covers exec and successful write-intent `openat` on one Linux 6.8
-  WSL2 Docker host; it is not a portability claim.
+- Kernel validation currently covers exec, selected successful `openat`, and numeric IPv4 connect
+  attempts on Linux 6.8 and 6.18 WSL2 Docker hosts; it is not a portability claim.
 - Offline Cosign bundle verification with a synthetic key is implemented; keyless workload
   identity and transparency-log verification are not.
 - Runtime Trace v0.1 is experimental and monitor event fields are not standardized.
 - Async eBPF cannot prove atomic file-content identity at access time.
 - Process/file observations establish documented edges, not semantic causation.
-- No performance, detection-rate, SLSA level, or production-readiness claim is made.
+- Core microbenchmarks are recorded, but no sensor-overhead, detection-rate, SLSA-level, or
+  production-readiness claim is made.
 
 All adversarial work is restricted to synthetic fixtures, localhost, repository-controlled
 containers/VMs, and explicitly authorized systems. See [SECURITY.md](SECURITY.md).

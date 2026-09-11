@@ -11,10 +11,11 @@ No false-positive or false-negative rate is reported from these curated fixtures
 ## Privileged sensor tests
 
 `tools/test-sensor.sh` runs only in a disposable privileged Linux environment. The sensor stays
-outside a temporary fixture cgroup. Fixed `/usr/bin/id` and `/bin/echo` processes move into that
-cgroup before exec and must be present, while a `/usr/bin/whoami` control executed in the sensor's
-cgroup must be absent. The test also requires `sensor_finalized=true` and `ringbuf_drops=0`, so a
-lossy run cannot pass as clean. This proves exact-ID filtering in the tested namespace layout,
+outside a temporary fixture cgroup. Fixed echo, shell, and local-connect processes move into that
+cgroup before exec and must be present, while a `/usr/bin/whoami` control executed outside the
+target cgroup must be absent. The test also requires a `sensor_finalized` event and every
+implemented loss counter to be zero, so a lossy run cannot pass as clean. This proves exact-ID
+filtering in the tested namespace layout,
 not exclusion under every cgroup namespace/delegation arrangement or inclusion of nested cgroups.
 
 The smoke test passes the resulting stream through `rpf validate-events`, then attempts to reuse
@@ -81,7 +82,10 @@ to remain zero and `ALLOW`.
 
 `tools/test-cgroup-enter.sh` repeats the complete cgroup-entry, supplementary-group clearing,
 UID/GID drop, and exec transition 100 times and requires exact `id` output. This permanently
-regresses the Linux per-thread credential race found during the full-suite review.
+regresses the Linux per-thread credential race found during the full-suite review. Credential
+diagnostics are kept outside the zero-loss benign sensor baseline because dynamically linked
+identity lookup can introduce unrelated `openat` path-capture uncertainty; the baseline instead
+requires UID/GID 65534 on its actual build events.
 
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into

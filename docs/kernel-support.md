@@ -2,10 +2,11 @@
 
 ## Current tested slice
 
-The M2 sensor has been exercised on a Linux 6.8 WSL2 kernel through a disposable privileged
-Docker container. That result proves the checked-in exec program loaded, attached, filtered on
-the test cgroup ID, delivered records, and reported zero reservation loss in that environment.
-It is not a broader compatibility result.
+The sensor has been exercised on Linux 6.8 WSL2 and, most recently on 2026-09-11, Linux
+`6.18.33.2-microsoft-standard-WSL2` through a disposable privileged Docker container. Those runs
+prove the checked-in exec/open/connect programs loaded, attached, filtered on the test cgroup ID,
+delivered records, and exposed implemented loss state in those environments. They are not a
+broader compatibility result.
 
 The current implementation requires:
 

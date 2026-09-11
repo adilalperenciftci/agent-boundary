@@ -23,7 +23,7 @@ esac
 evidence=build/out/$case_name-events.jsonl
 graph=build/out/$case_name-graph.json
 artifact=/src/build/out/$case_name-artifact.txt
-credential=/src/lab/fixtures/synthetic-credential.txt
+credential=/src/build/out/$case_name-synthetic-credential.txt
 renamed=/src/build/out/$case_name-renamed-shell
 provenance=build/out/$case_name-provenance.json
 bundle=build/out/$case_name-bundle
@@ -56,6 +56,9 @@ cgroup_id=$(stat -c %i "$fixture_cgroup")
 boot_id=$(cat /proc/sys/kernel/random/boot_id)
 cgroup_path_hash=sha256:$(printf '%s' "$fixture_cgroup" | sha256sum | cut -d ' ' -f 1)
 rm -f "$evidence" "$graph" "$artifact" "$provenance" "$auth_result"
+cp /src/lab/fixtures/synthetic-credential.txt "$credential"
+chown 65534:65534 "$credential"
+chmod 0600 "$credential"
 : >"$artifact"
 chown 65534:65534 "$artifact"
 chmod 0600 "$artifact"
@@ -88,7 +91,7 @@ fi
 "$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c \
   'if printf tamper >> "$1" 2>/dev/null; then exit 90; fi' sh "/src/$evidence"
 identity=$("$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c \
-  'IFS= read -r ignored < "$1"; /usr/bin/id; printf rpf-adversarial-artifact > "$2"' \
+  'IFS= read -r ignored < "$1"; exec 3<> "$1"; exec 3>&-; /usr/bin/id; printf rpf-adversarial-artifact > "$2"' \
   sh "$credential" "$artifact")
 test "$identity" = 'uid=65534(nobody) gid=65534(nogroup) groups=65534(nogroup)'
 printf '%s\n' "$identity"
@@ -121,7 +124,7 @@ grep -q '"operation":"file_open_sensitive"' "$evidence"
 grep -q '"category":"synthetic_credential"' "$evidence"
 grep -q '"path":"/usr/bin/id"' "$evidence"
 grep -q '"path":"'"$renamed"'"' "$evidence"
-test "$(grep -c '"operation":"file_open_sensitive"' "$evidence")" -eq 2
+test "$(grep -c '"operation":"file_open_sensitive"' "$evidence")" -eq 3
 grep -q '"operation":"network_connect"' "$evidence"
 grep -q '"destination":"127.0.0.1:18080"' "$evidence"
 test "$(grep -c '"destination":"127.0.0.1:18081"' "$evidence")" -eq 1

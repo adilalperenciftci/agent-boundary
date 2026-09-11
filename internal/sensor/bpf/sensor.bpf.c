@@ -210,10 +210,10 @@ int observe_openat_enter(struct trace_event_raw_sys_enter___local *ctx)
         increment_counter(&correlation_drops);
         return 0;
     }
-    if ((pending.flags & WRITE_OPEN_FLAGS) != 0)
-        pending.kind = EVENT_FILE_OPEN_WRITE;
-    else if (path_matches_sensitive(pending.filename))
+    if (path_matches_sensitive(pending.filename))
         pending.kind = EVENT_FILE_OPEN_SENSITIVE;
+    else if ((pending.flags & WRITE_OPEN_FLAGS) != 0)
+        pending.kind = EVENT_FILE_OPEN_WRITE;
     else
         return 0;
     if (bpf_map_update_elem(&pending_opens, &key, &pending, BPF_ANY) < 0)

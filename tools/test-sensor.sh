@@ -62,9 +62,6 @@ while [ ! -f "$ready" ] && [ "$attempt" -lt 50 ]; do
 done
 test -f "$ready"
 /usr/bin/whoami >/dev/null
-identity=$("$enter" --cgroup "$fixture_cgroup" -- /usr/bin/id)
-test "$identity" = 'uid=65534(nobody) gid=65534(nogroup) groups=65534(nogroup)'
-printf '%s\n' "$identity"
 "$enter" --cgroup "$fixture_cgroup" -- /bin/echo rpf-synthetic-exec
 "$enter" --cgroup "$fixture_cgroup" -- /bin/sh -c 'printf rpf-artifact-v1 > "$1"' sh "$artifact"
 "$enter" --cgroup "$fixture_cgroup" -- "$callback" --address 127.0.0.1:18082
@@ -77,7 +74,6 @@ if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 130 ]; then
   exit "$status"
 fi
 grep -q '"operation":"sensor_started"' "$output"
-grep -q '"path":"/usr/bin/id"' "$output"
 grep -q '"path":"/bin/echo"' "$output"
 grep -q '"operation":"file_open_output"' "$output"
 grep -q '"operation":"artifact_finalized"' "$output"
@@ -96,7 +92,6 @@ grep -q '"gid":65534' "$output"
 grep -q '"operation":"sensor_finalized"' "$output"
 "$validator" validate-events --events "$output"
 "$validator" graph-events --events "$output" --output "$graph"
-grep -q '"executable":"/usr/bin/id"' "$graph"
 grep -q '"executable":"/bin/echo"' "$graph"
 grep -q '"kind":"observed_exec_parent"' "$graph"
 grep -q '"kind":"file_open_output"' "$graph"

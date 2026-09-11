@@ -5,7 +5,8 @@
 This is malware-behavior emulation, not deployable malware. It has no scanning, propagation,
 persistence, Internet communication, credential collection, destructive action, or host-targeting
 logic. It runs in a disposable cgroup, reads only
-`lab/fixtures/synthetic-credential.txt`, and writes only generated files under `build/out`.
+an isolated writable copy of `lab/fixtures/synthetic-credential.txt` under `build/out`, and writes
+only generated files under `build/out`.
 
 ## Intended observations
 
@@ -14,17 +15,20 @@ launch `/usr/bin/id`, and write the synthetic artifact. Telemetry must retain ca
 `synthetic_credential`, process identity and ancestry, but never the fixture value. A second run
 inside the same monitored interval executes a copied shell named
 `build/out/rpf-renamed-shell` and repeats the read to test representation robustness.
+The first shell also opens the same generated fixture with `O_RDWR` without changing it, ensuring
+generic write classification cannot hide a sensitive-path event.
 
 Expected policy result: `REJECT` with `RPF-SENSITIVE-001`. The renamed executable may add
 `RPF-PROCESS-001` but must not suppress the sensitive-access finding.
 
 ## Reproduction and actual result
 
-Run `./tools/test-adversarial.sh` in the checked-in kernel lab image. On 2026-09-11, Linux 6.8
-WSL2 produced two independent valid 14-event streams (vulnerable and patched authorization
-fixtures), each with six graph nodes, 12 graph edges, two `file_open_sensitive` events, zero
-implemented loss counters, and a final `REJECT` containing both sensitive-access and egress
-reasons.
+Run `./tools/test-adversarial.sh` in the checked-in kernel lab image. On 2026-09-11, Linux
+`6.18.33.2-microsoft-standard-WSL2` produced two independent valid 15-event streams (vulnerable
+and patched authorization fixtures), each with six graph nodes, 13 graph edges and three
+`file_open_sensitive` events. Depending on process-exit timing, the correlation-loss count was
+zero or one; completeness and `RPF-EVIDENCE-001` followed that counter. Both runs ended in
+`REJECT` containing sensitive-access and egress reasons.
 
 The exact process IDs vary; the script asserts stable reason codes and security invariants. It
 also searches both evidence streams and fails if the synthetic value occurs.
@@ -37,8 +41,9 @@ on the kernel event alone; the mock's marker receipt independently proves the lo
 
 ## Evasion result and blind spots
 
-Executable renaming did not bypass category detection because kernel filtering keys on the exact
-sensitive path, not executable name. Current blind spots include aliases/symlinks, relative paths,
+Executable renaming and an `O_RDWR` representation did not bypass category detection because
+kernel filtering keys on the exact sensitive path before generic write classification. Current
+blind spots include aliases/symlinks, relative paths,
 `openat2`, inherited descriptors, mmap access, path replacement, and reads that begin before the
 process has an observed exec identity. The test does not claim that reading a file is malicious;
 policy makes this specific synthetic category forbidden for the build.
