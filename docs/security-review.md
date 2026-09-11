@@ -60,6 +60,9 @@ under an unrelated generated public key. Separately, the verifier CLI rejects ma
 provenance and a provenance subject with a wrong artifact digest without creating an output
 bundle. This demonstrates local fixture rejection, not keyless identity or transparency-log
 verification; the current lab intentionally uses an offline key and skips tlog verification.
+The baseline now invokes one fail-closed offline entry point that verifies both signed blobs before
+semantic correlation; signature failure prevents the policy verifier from running. This closes the
+local orchestration gap but does not supply keyless workload identity or transparency freshness.
 
 Runtime replay is exercised with two independently captured, complete kernel event streams. A
 bundle from build B presented with build A's artifact, events, and provenance produces explicit

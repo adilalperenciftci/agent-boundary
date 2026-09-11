@@ -104,7 +104,8 @@ grep -q '"kind":"network_connect"' "$graph"
   --policy "$policy" --bundle "$bundle"
 grep -q 'https://in-toto.io/attestation/runtime-trace/v0.1' "$bundle/runtime-trace.json"
 if [ "$full_acceptance" -eq 1 ]; then
-  ./tools/test-signing.sh "$bundle/runtime-trace.json" "$provenance"
+  ./tools/test-signing.sh "$bundle/runtime-trace.json" "$provenance" "$artifact" "$output" \
+    "$policy" "$bundle"
   original=$artifact.original
   cp "$artifact" "$original"
   printf substituted >> "$artifact"
