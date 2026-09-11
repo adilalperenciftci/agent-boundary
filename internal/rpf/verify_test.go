@@ -2,6 +2,7 @@ package rpf
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -222,5 +223,13 @@ func TestDuplicateJSONKeyRejected(t *testing.T) {
 	err := decodeStrict([]byte(`{"schema_version":"0.1","schema_version":"0.1"}`), &policy, maxDocumentBytes)
 	if err == nil {
 		t.Fatal("duplicate key accepted")
+	}
+}
+
+func TestOversizedJSONStringRejected(t *testing.T) {
+	raw := []byte(`{"value":"` + strings.Repeat("x", maxStringBytes+1) + `"}`)
+	var value map[string]any
+	if err := decodeStrict(raw, &value, maxDocumentBytes); err == nil {
+		t.Fatal("oversized JSON string accepted")
 	}
 }

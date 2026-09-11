@@ -39,6 +39,9 @@ func ParseEventStream(raw []byte) ([]Event, error) {
 			return nil, fmt.Errorf("event line %d is not canonical JSON", len(events)+1)
 		}
 		events = append(events, event)
+		if len(events) > maxEvents {
+			return nil, errors.New("event count exceeds limit")
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scan event stream: %w", err)

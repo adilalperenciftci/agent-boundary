@@ -13,8 +13,10 @@ import (
 const (
 	maxDocumentBytes = 64 << 20
 	maxEventBytes    = 256 << 10
+	maxStringBytes   = 32 << 10
 	maxDepth         = 16
 	maxValues        = 2000
+	maxEvents        = 1_000_000
 )
 
 func Digest(data []byte) string {
@@ -98,6 +100,9 @@ func walkJSON(decoder *json.Decoder, depth int, count *int) error {
 	}
 	delim, ok := token.(json.Delim)
 	if !ok {
+		if value, isString := token.(string); isString && len(value) > maxStringBytes {
+			return errors.New("JSON string exceeds limit")
+		}
 		return nil
 	}
 	switch delim {
@@ -111,6 +116,9 @@ func walkJSON(decoder *json.Decoder, depth int, count *int) error {
 			key, ok := keyToken.(string)
 			if !ok {
 				return errors.New("object key is not a string")
+			}
+			if len(key) > maxStringBytes {
+				return errors.New("JSON object key exceeds string limit")
 			}
 			if _, exists := seen[key]; exists {
 				return fmt.Errorf("duplicate JSON key %q", key)
