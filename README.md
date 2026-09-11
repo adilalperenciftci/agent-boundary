@@ -49,7 +49,7 @@ Implemented invariants include:
 - missing artifact-finalization/process attribution fails closed;
 - policy findings carry stable machine-readable reason codes.
 
-## Reproduce the current slice
+## Reproduce the implementation
 
 Go 1.27 or newer is required for the Go research core. Python 3.12 and `uv` remain temporarily
 required for the original decision-engine tests while that code is migrated or retired.
@@ -124,7 +124,7 @@ See [architecture](docs/architecture.md), [threat model](docs/threat-model.md),
 [trust model](docs/trust-model.md), and the
 [2026 landscape review](docs/research/landscape-2026.md).
 
-## Research result so far
+## Research findings
 
 The original broad thesis was narrowed after source-level review. `cicd-sensor` already
 provides CI-focused eBPF telemetry, ancestry-aware detection, loss counters, and Runtime Trace
@@ -141,8 +141,8 @@ reconciling missing data. See the [gap analysis](docs/research/runtime-attestati
 - Runtime Trace v0.1 is experimental and monitor event fields are not standardized.
 - Async eBPF cannot prove atomic file-content identity at access time.
 - Process/file observations establish documented edges, not semantic causation.
-- Core microbenchmarks are recorded, but no sensor-overhead, detection-rate, SLSA-level, or
-  production-readiness claim is made.
+- Core microbenchmarks and a narrow process-launch-dominated sensor comparison are recorded; no
+  representative build-overhead, detection-rate, SLSA-level, or production-readiness claim is made.
 
 All adversarial work is restricted to synthetic fixtures, localhost, repository-controlled
 containers/VMs, and explicitly authorized systems. See [SECURITY.md](SECURITY.md).
