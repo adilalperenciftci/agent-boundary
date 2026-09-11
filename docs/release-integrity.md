@@ -4,4 +4,10 @@ No release artifacts are published yet. A future release workflow must build fro
 
 The current CI builds distributions as a packaging check but does not claim a SLSA level. Publishing, keyless signing, and provenance generation require a separate workflow with narrowly scoped `id-token: write` and `contents: read` permissions. Pull-request workflows must not receive release credentials.
 
+CI now runs Go race tests/vet and Python tests/static analysis with read-only default permissions.
+Separate SHA-pinned CodeQL and OpenSSF Scorecard workflows grant `security-events: write` only to
+their analysis jobs; only Scorecard receives `id-token: write` for authenticated result
+publication. These workflows improve repository checks but do not constitute a release process,
+SBOM, signed release, or SLSA provenance.
+
 Recommended branch controls are required reviews for runtime, policy, and workflow changes; successful CI; no force pushes on the release branch; private vulnerability reporting; and reviewed dependency updates. Host configuration cannot be enforced from this repository and must be verified separately.
