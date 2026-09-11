@@ -30,6 +30,11 @@ now requires an exact artifact-producer allowlist and emits `RPF-ARTIFACT-PRODUC
 is semantic to artifact finalization, not a conflicting graph identity. Exact path identity remains
 representation-sensitive and does not substitute for content/package identity.
 
+Parser review added bounded native fuzz targets for event, policy, and attestation boundaries.
+Seeds include valid canonical fixtures and malformed minimal documents. Scheduled runs are
+time-bounded and unprivileged; they do not cover kernel verifier behavior or establish exhaustive
+parser safety.
+
 ## Controlled malware-behavior experiments
 
 MBE-001 emulates a synthetic credential-file read, child execution, artifact staging, an

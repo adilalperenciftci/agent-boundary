@@ -77,3 +77,8 @@ that image are not yet snapshot-pinned, so the image build is repeatable but not
 The wire decoder has unprivileged exact-size and bounded-string unit tests. Linux CI must build
 and vet all Go packages; privileged kernel coverage is a separate gate because ordinary hosted
 CI does not provide equivalent eBPF semantics.
+
+Native Go fuzz targets cover canonical event streams, policy documents, and in-toto/SLSA
+Statement parsing. Ordinary `go test` executes their checked-in seeds; a read-only weekly/manual
+workflow runs each target for 30 seconds. This is bounded parser robustness coverage, not evidence
+that all parser defects are absent. Privileged BPF behavior is not fuzzed by these userspace tests.
