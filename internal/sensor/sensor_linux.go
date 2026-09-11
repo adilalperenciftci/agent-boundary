@@ -23,28 +23,37 @@ const (
 )
 
 type ExecEvent struct {
-	MonotonicNS uint64 `json:"monotonic_ns"`
-	CgroupID    uint64 `json:"cgroup_id"`
-	PID         uint32 `json:"pid"`
-	TGID        uint32 `json:"tgid"`
-	PPID        uint32 `json:"ppid"`
-	UID         uint32 `json:"uid"`
-	GID         uint32 `json:"gid"`
-	Command     string `json:"command"`
-	Filename    string `json:"filename"`
+	MonotonicNS        uint64 `json:"monotonic_ns"`
+	CgroupID           uint64 `json:"cgroup_id"`
+	StartTimeNS        uint64 `json:"start_time_ns"`
+	ParentStartTimeNS  uint64 `json:"parent_start_time_ns"`
+	PID                uint32 `json:"pid"`
+	TGID               uint32 `json:"tgid"`
+	PPID               uint32 `json:"ppid"`
+	UID                uint32 `json:"uid"`
+	GID                uint32 `json:"gid"`
+	PIDNamespace       uint32 `json:"pid_namespace"`
+	MountNamespace     uint32 `json:"mount_namespace"`
+	ParentPIDNamespace uint32 `json:"parent_pid_namespace"`
+	Command            string `json:"command"`
+	Filename           string `json:"filename"`
 }
 
 type wireExecEvent struct {
-	MonotonicNS uint64
-	CgroupID    uint64
-	PID         uint32
-	TGID        uint32
-	PPID        uint32
-	UID         uint32
-	GID         uint32
-	Command     [commLength]byte
-	Filename    [pathLength]byte
-	Padding     [4]byte
+	MonotonicNS        uint64
+	CgroupID           uint64
+	StartTimeNS        uint64
+	ParentStartTimeNS  uint64
+	PID                uint32
+	TGID               uint32
+	PPID               uint32
+	UID                uint32
+	GID                uint32
+	PIDNamespace       uint32
+	MountNamespace     uint32
+	ParentPIDNamespace uint32
+	Command            [commLength]byte
+	Filename           [pathLength]byte
 }
 
 type Sensor struct {
@@ -131,8 +140,11 @@ func decodeExec(raw []byte) (ExecEvent, error) {
 	}
 	return ExecEvent{
 		MonotonicNS: wire.MonotonicNS, CgroupID: wire.CgroupID,
+		StartTimeNS: wire.StartTimeNS, ParentStartTimeNS: wire.ParentStartTimeNS,
 		PID: wire.PID, TGID: wire.TGID, PPID: wire.PPID, UID: wire.UID, GID: wire.GID,
-		Command: cString(wire.Command[:]), Filename: cString(wire.Filename[:]),
+		PIDNamespace: wire.PIDNamespace, MountNamespace: wire.MountNamespace,
+		ParentPIDNamespace: wire.ParentPIDNamespace,
+		Command:            cString(wire.Command[:]), Filename: cString(wire.Filename[:]),
 	}, nil
 }
 

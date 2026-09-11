@@ -29,9 +29,10 @@ synthetic canonical runtime events
         -> ALLOW / REVIEW / REJECT
 ```
 
-The correlation slice uses synthetic events and has assurance level `fixture`. The M2 sensor
-separately proves cgroup-filtered `sched_process_exec` collection and explicit ring-buffer loss
-accounting on Linux. Sensor output is not yet admitted as signed build evidence, and Sigstore
+The correlation slice uses synthetic events and has assurance level `fixture`. The M2/M3 Linux
+path proves cgroup-filtered `sched_process_exec` collection, composite process identity,
+canonical hash chaining, exclusive evidence creation, strict replay, and explicit ring-buffer
+loss accounting. Sensor output is not yet bound to a produced artifact or signed, and Sigstore
 verification is not implemented. `verify-fixture` is named to prevent unsigned fixture
 verification from being confused with the later strict signed verifier.
 
@@ -69,9 +70,10 @@ reloads it through strict parsers, recomputes every binding, and requires `ALLOW
 tests alter the artifact and manifest, inject event loss, and emulate forbidden sensitive-file
 access and localhost egress; those paths must reject.
 
-The privileged sensor smoke test requires Linux with cgroup v2, BTF, tracefs, and BPF loading
-privilege. Build the CO-RE object and Linux CLI, then run `tools/test-sensor.sh`; the test requires
-two expected exec records and a finalized zero-loss record. See
+The privileged sensor smoke test requires Docker on a Linux kernel with cgroup v2, BTF, tracefs,
+and BPF loading privilege. Run `./tools/kernel-lab.sh`; it builds the checked-in lab image and
+requires two expected exec records, a valid canonical chain, overwrite refusal, and a finalized
+zero-loss record. See
 [kernel support](docs/kernel-support.md) for exact limits.
 
 ## Intended architecture

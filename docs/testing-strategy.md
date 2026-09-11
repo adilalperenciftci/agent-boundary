@@ -16,6 +16,12 @@ and requires both records plus `sensor_finalized=true`. It also requires `ringbu
 therefore a lossy run cannot pass as clean. This is an attachment and delivery smoke test, not
 evidence that unrelated cgroups are excluded under every namespace arrangement.
 
+The smoke test passes the resulting stream through `rpf validate-events`, then attempts to reuse
+the same evidence path. The second collector must fail and the file digest must remain unchanged.
+`tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
+race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
+that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.
+
 The wire decoder has unprivileged exact-size and bounded-string unit tests. Linux CI must build
 and vet all Go packages; privileged kernel coverage is a separate gate because ordinary hosted
 CI does not provide equivalent eBPF semantics.

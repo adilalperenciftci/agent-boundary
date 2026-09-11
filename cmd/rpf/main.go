@@ -11,16 +11,41 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fail("usage: rpf <assemble|verify-fixture> [options]")
+		fail("usage: rpf <assemble|validate-events|verify-fixture> [options]")
 	}
 	switch os.Args[1] {
 	case "assemble":
 		assemble(os.Args[2:])
 	case "verify-fixture":
 		verify(os.Args[2:])
+	case "validate-events":
+		validateEvents(os.Args[2:])
 	default:
 		fail("unknown command %q", os.Args[1])
 	}
+}
+
+func validateEvents(arguments []string) {
+	set := flag.NewFlagSet("validate-events", flag.ContinueOnError)
+	eventPath := set.String("events", "", "canonical event JSONL")
+	if err := set.Parse(arguments); err != nil {
+		fail("%v", err)
+	}
+	if *eventPath == "" {
+		fail("--events is required")
+	}
+	raw, err := os.ReadFile(*eventPath)
+	if err != nil {
+		fail("read events: %v", err)
+	}
+	events, err := rpf.ParseEventStream(raw)
+	if err != nil {
+		fail("validate events: %v", err)
+	}
+	printJSON(map[string]any{
+		"valid": true, "event_count": len(events), "build_id": events[0].Build.BuildID,
+		"first_sequence": events[0].Sequence, "last_sequence": events[len(events)-1].Sequence,
+	})
 }
 
 func assemble(arguments []string) {

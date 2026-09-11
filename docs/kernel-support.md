@@ -27,10 +27,12 @@ delegation, nested cgroups, or namespace presentation can invalidate naive attri
 future registrar must bind cgroup ID to boot ID, cgroup path digest, build nonce, and monitoring
 interval as required by ADR 0005.
 
-`sched_process_exec` reports successful exec transitions. It does not report failed attempts,
-interpreted script content, file reads, network activity, process start time, namespace IDs, or
-artifact causality. The filename is bounded to 255 bytes plus NUL and may be truncated by the
-kernel helper; policy must not treat it as cryptographic executable identity.
+`sched_process_exec` reports successful exec transitions. The current record includes kernel
+start time plus active PID and mount namespace inode numbers; these are attribution inputs, not
+proof of semantic causation. It does not report failed attempts, interpreted script content,
+file reads, network activity, or artifact causality. The filename is bounded to 255 bytes plus
+NUL and may be truncated by the kernel helper; policy treats it explicitly as `path_only`, not
+cryptographic executable identity.
 
 Ring-buffer reservation failures are measured in a per-CPU counter and emitted on orderly
 sensor shutdown. Abrupt collector loss currently produces no signed finalization and therefore

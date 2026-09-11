@@ -11,13 +11,18 @@ import (
 
 func TestDecodeExec(t *testing.T) {
 	wire := wireExecEvent{
-		MonotonicNS: 42,
-		CgroupID:    73,
-		PID:         101,
-		TGID:        100,
-		PPID:        12,
-		UID:         1000,
-		GID:         1001,
+		MonotonicNS:        42,
+		CgroupID:           73,
+		StartTimeNS:        40,
+		ParentStartTimeNS:  30,
+		PID:                101,
+		TGID:               100,
+		PPID:               12,
+		UID:                1000,
+		GID:                1001,
+		PIDNamespace:       7,
+		MountNamespace:     8,
+		ParentPIDNamespace: 6,
 	}
 	copy(wire.Command[:], "compiler")
 	copy(wire.Filename[:], "/usr/bin/cc")
@@ -30,8 +35,10 @@ func TestDecodeExec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if event.MonotonicNS != 42 || event.CgroupID != 73 || event.PID != 101 ||
+	if event.MonotonicNS != 42 || event.CgroupID != 73 || event.StartTimeNS != 40 ||
+		event.ParentStartTimeNS != 30 || event.PID != 101 ||
 		event.TGID != 100 || event.PPID != 12 || event.UID != 1000 || event.GID != 1001 ||
+		event.PIDNamespace != 7 || event.MountNamespace != 8 || event.ParentPIDNamespace != 6 ||
 		event.Command != "compiler" || event.Filename != "/usr/bin/cc" {
 		t.Fatalf("unexpected decoded event: %+v", event)
 	}

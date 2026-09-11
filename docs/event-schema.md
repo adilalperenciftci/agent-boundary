@@ -58,6 +58,11 @@ alone is insufficient. `parent_key` exists only when parent identity was observe
 content identity is optional until measured without misleading TOCTOU claims; `path_only` is
 an explicit weaker `identity_kind`.
 
+The current collector derives `event_id` deterministically from build ID, run ID, and sequence;
+its uniqueness therefore depends on the registrar never reusing a build execution identity.
+`observed_at` is userspace collection time, while `monotonic_ns` comes from kernel boot time for
+kernel events. Neither timestamp alone establishes event identity or causal ordering across hosts.
+
 ## Operations and resources
 
 | Operation | Resource | Meaning |
@@ -116,6 +121,10 @@ For event `n`, `previous_event_hash` equals the canonical hash of event `n-1`; t
 64 zero hexadecimal digits. `event_hash` is SHA-256 over the event without `event_hash` but
 including `previous_event_hash`. The manifest separately hashes exact canonical JSONL bytes.
 Sequence, chain, and byte digest must all verify.
+
+The collector creates a new mode-`0600` stream with exclusive-create and append flags and syncs
+each event. Existing evidence is never resumed or overwritten. This reduces accidental overwrite
+and crash ambiguity; it is not immutable storage and does not resist a filesystem administrator.
 
 This detects modification, insertion, deletion inside a supplied complete segment, and
 reordering. It does not prevent whole-bundle deletion, valid-prefix rollback, or forgery by

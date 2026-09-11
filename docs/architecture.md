@@ -26,9 +26,9 @@ SLSA provenance <------ evidence manifest ------> Runtime Trace v0.1
                     ALLOW / REVIEW / REJECT
 ```
 
-Solid implementation currently includes the fixture correlation path plus a separately tested
-cgroup-filtered exec sensor. Converting raw sensor records into canonical build evidence and
-Sigstore verification remain target components.
+Solid implementation currently includes the fixture correlation path plus a tested
+cgroup-filtered exec sensor and canonical single-writer collector. Artifact finalization from
+a monitored build and Sigstore verification remain target components.
 
 ## Components
 
@@ -40,12 +40,13 @@ filename records through a BPF ring buffer. Reservation failure increments a per
 userspace sums and emits it during finalization. This slice deliberately does not claim file,
 network, namespace, process-start-time, or build-nonce attribution yet.
 
-### Go sensor loader (M2 implemented; canonical collector planned)
+### Go sensor loader and collector (M2/M3 implemented)
 
 `cmd/rpf-sensor` loads the CO-RE object using `cilium/ebpf`, rewrites the target cgroup constant,
-attaches the tracepoint, defensively decodes fixed-size records, and emits JSON lines plus the
-final loss count. It is a diagnostic boundary, not the canonical evidence collector. Build nonce
-registration, composite identities, append-only persistence, and privilege separation remain.
+attaches the tracepoint, and defensively decodes fixed-size records. It constructs composite
+process/parent keys, writes canonical hash-chained lifecycle and exec events through one
+exclusive append writer, syncs each record, and finalizes the loss count. Authenticating build
+registration, artifact events, and privilege separation remain.
 
 ### Evidence and graph core (implemented for fixtures)
 
