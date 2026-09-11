@@ -25,9 +25,10 @@ the service returning a fixed synthetic marker; the marker is not written into r
 
 On 2026-09-11 in the Linux 6.8 WSL2 disposable lab, the vulnerable run returned
 `granted=true reason=authorized`. The exact same proof against patched mode returned
-`granted=false reason=authorization_denied`. The combined monitored build produced a valid
-15-event stream, six process nodes, 13 graph edges, and two attributed connection attempts to
-`127.0.0.1:18081`, with all implemented loss counters zero.
+`granted=false reason=authorization_denied`. These were independent monitored builds, not two
+application calls hidden in one stream. Each produced a valid 13-event stream, five process nodes,
+11 graph edges, one attributed connection attempt to `127.0.0.1:18081`, an artifact, provenance,
+and runtime trace, with all implemented loss counters zero.
 
 The vulnerability exists and exploitability was dynamically demonstrated. Runtime telemetry
 observed the proof process and network attempts. Current detection did **not** identify the
@@ -38,9 +39,10 @@ prevention.
 
 ## Fix and patch validation
 
-Patched mode ignores `adapter_role` for authorization and uses only `session_role`. The original
-proof no longer obtains the marker while the target still accepts the request and returns a
-structured denial. A unit test also confirms an incorrect target identity is denied in both modes.
+Patched mode ignores `adapter_role` for authorization and uses only `session_role`. In a fresh
+cgroup/build identity, the original proof no longer obtains the marker while the target still
+accepts the request, returns a structured denial, and the surrounding benign artifact build still
+completes. A unit test also confirms an incorrect target identity is denied in both modes.
 
 Residual risk: the fixture models session role as an in-process trusted input rather than a real
 cryptographically authenticated identity. Runtime-only observation cannot infer application

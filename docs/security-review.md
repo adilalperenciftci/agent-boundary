@@ -32,10 +32,11 @@ None yet; no exploit hypothesis has completed the required dynamic validation cy
 
 ## Authorization-boundary experiments
 
-EXP-001 vulnerable mode granted a synthetic admin marker based on adapter metadata. Patched mode
-denied identical input. The responsible proof process and connection were attributed correctly.
-The detector cannot distinguish grant from denial; this is a confirmed blind spot, not a negative
-exploitability result.
+EXP-001 vulnerable mode granted a synthetic admin marker based on adapter metadata. A separate
+patched build denied identical input. Each run has an independent cgroup, identity, evidence chain,
+graph, artifact, provenance, and runtime trace. The responsible proof process and connection were
+attributed correctly. The detector cannot distinguish grant from denial; this is a confirmed blind
+spot, not a negative exploitability result.
 
 ## Detection-evasion experiments
 
@@ -77,10 +78,11 @@ was exploitable and observable, but the authorization violation itself was not d
 
 ## Patch validation
 
-EXP-001 patched mode was rerun with the exact proof and denied the marker while returning a valid
-response. Kernel telemetry remained present. Benign authorization functionality is unit-tested
-for the trusted admin role through the common authorization function. Parser resource limits and
-artifact substitution checks remain defensive regressions, not this target's remediation.
+EXP-001 patched mode was rerun as an independent monitored build with the exact proof and denied
+the marker while returning a valid response and still producing its benign test artifact. Kernel
+telemetry remained present. Benign authorization functionality is unit-tested for the trusted
+admin role through the common authorization function. Parser resource limits and artifact
+substitution checks remain defensive regressions, not this target's remediation.
 
 ## Claim matrix
 

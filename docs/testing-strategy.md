@@ -64,10 +64,12 @@ verification must return `REJECT` with identity and recomputed-manifest/runtime-
 reasons. Supplying the second build's provenance alongside the first event stream must fail
 assembly without writing a bundle. This uses two observed kernel runs rather than relabelled JSON.
 
-The same script runs EXP-001 twice with byte-identical authorization claims: explicitly vulnerable
-mode must grant the synthetic marker and patched mode must deny it. Both proof processes and
-loopback attempts must appear in telemetry. This is a complete local exploit/patch path, while the
-documented result remains that authorization semantics are not detected by current kernel signals.
+The same script runs EXP-001 as two separate monitored builds with byte-identical authorization
+claims: explicitly vulnerable mode must grant the synthetic marker and patched mode must deny it.
+Each run has its own cgroup, build/run identity, stream, graph, artifact, provenance, runtime trace,
+and policy decision. Both proof chains must appear in their own telemetry. This is a complete local
+exploit/patch path, while both builds still `REJECT` because sensitive access and undeclared egress
+remain intentionally unchanged; current kernel signals do not detect authorization semantics.
 `tools/kernel-lab.sh` builds the checked-in pinned-base lab image and runs BPF compilation, Go
 race tests, vet, both binaries, and the privileged smoke test. Debian packages installed into
 that image are not yet snapshot-pinned, so the image build is repeatable but not byte-reproducible.

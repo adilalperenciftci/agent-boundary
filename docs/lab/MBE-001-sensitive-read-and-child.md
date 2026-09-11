@@ -21,15 +21,13 @@ Expected policy result: `REJECT` with `RPF-SENSITIVE-001`. The renamed executabl
 ## Reproduction and actual result
 
 Run `./tools/test-adversarial.sh` in the checked-in kernel lab image. On 2026-09-11, Linux 6.8
-WSL2 produced a valid nine-event stream, three graph nodes, seven graph edges, two
-`file_open_sensitive` events, zero implemented loss counters, and:
+WSL2 produced two independent valid 13-event streams (vulnerable and patched authorization
+fixtures), each with five graph nodes, 11 graph edges, two `file_open_sensitive` events, zero
+implemented loss counters, and a final `REJECT` containing both sensitive-access and egress
+reasons.
 
-```json
-{"decision":"REJECT","completeness":"complete","reasons":[{"code":"RPF-SENSITIVE-001","effect":"REJECT","sequence":3},{"code":"RPF-PROCESS-001","effect":"REVIEW","sequence":6},{"code":"RPF-SENSITIVE-001","effect":"REJECT","sequence":7}]}
-```
-
-The exact message fields and process IDs vary; the script asserts stable reason codes and
-security invariants. It also searches the evidence bytes and fails if the synthetic value occurs.
+The exact process IDs vary; the script asserts stable reason codes and security invariants. It
+also searches both evidence streams and fails if the synthetic value occurs.
 
 The expanded specimen also executes the fixed `rpf-local-connect` helper against the repository
 mock at `127.0.0.1:18080`. The helper and server reject non-loopback configuration. Kernel
