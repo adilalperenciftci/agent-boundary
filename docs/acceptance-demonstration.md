@@ -22,7 +22,8 @@ important blind spot: authorization grant versus denial is not itself visible in
 telemetry. Fixed report claims are emitted only after the scripts assert their underlying files,
 outcomes, signatures, and decisions. Generated output is not committed as immutable test history.
 
-The benign helper accepts only a pre-created regular `sensor-*-artifact.txt` directly under the
+The benign path includes the fixed, network-free synthetic package-install fixture. The artifact
+helper accepts only a pre-created regular `sensor-*-artifact.txt` directly under the
 generated lab output directory, rejects symbolic links at open time, and requires the
 disposable-lab environment marker. This supports independent replay fixtures without becoming a
 general file-writing utility.

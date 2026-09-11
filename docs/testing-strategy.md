@@ -89,8 +89,10 @@ diagnostics are kept outside the zero-loss benign sensor baseline because dynami
 identity lookup can introduce unrelated `openat` path-capture uncertainty; the baseline instead
 requires UID/GID 65534 on its actual build events.
 
-The benign artifact producer is a static repository-lab helper restricted to the fixed generated
-artifact name under `/src/build/out`. Once read-only opens were filtered before pathname access
+The benign path also runs the network-free package fixture against the repository-owned synthetic
+lockfile; it receives no credential or package-manager network access. The artifact producer is a
+static repository-lab helper restricted to the fixed generated artifact name under `/src/build/out`.
+Once read-only opens were filtered before pathname access
 when no sensitive profile is active, 20 consecutive baseline runs completed with zero implemented
 loss and `ALLOW`. This is a bounded reproducibility check on the recorded WSL2 kernel, not a rate
 or portability claim.

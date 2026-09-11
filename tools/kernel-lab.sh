@@ -23,6 +23,7 @@ docker run --rm -v "$docker_root:/src" -w /src "$image" go build -o build/out/rp
 docker run --rm -v "$docker_root:/src" -w /src "$image" go build -o build/out/rpf-authz-proof ./cmd/rpf-authz-proof
 docker run --rm -v "$docker_root:/src" -w /src "$image" go build -o build/out/rpf-cgroup-enter ./cmd/rpf-cgroup-enter
 docker run --rm -v "$docker_root:/src" -w /src "$image" go build -o build/out/rpf-build-fixture ./cmd/rpf-build-fixture
+docker run --rm -v "$docker_root:/src" -w /src "$image" go build -o build/out/rpf-package-fixture ./cmd/rpf-package-fixture
 docker run --rm --privileged -v "$docker_root:/src" -w /src "$image" ./tools/test-cgroup-enter.sh
 docker run --rm --privileged -v "$docker_root:/src" -w /src "$image" ./tools/final-acceptance.sh
 docker run --rm -v "$docker_root:/src" -w /src "$image" ./tools/test-evidence-integrity.sh

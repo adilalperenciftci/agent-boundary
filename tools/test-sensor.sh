@@ -20,6 +20,7 @@ bundle=${RPF_TEST_BUNDLE:-build/out/sensor-test-bundle}
 full_acceptance=${RPF_TEST_FULL_ACCEPTANCE:-1}
 enter=/src/build/out/rpf-cgroup-enter
 build_fixture=/src/build/out/rpf-build-fixture
+package_fixture=/src/build/out/rpf-package-fixture
 policy=lab/kernel/policy.json
 if ! mountpoint -q /sys/kernel/tracing; then
   mount -t tracefs tracefs /sys/kernel/tracing
@@ -66,6 +67,7 @@ while [ ! -f "$ready" ] && [ "$attempt" -lt 50 ]; do
 done
 test -f "$ready"
 /usr/bin/whoami >/dev/null
+"$enter" --cgroup "$fixture_cgroup" -- "$package_fixture" --manifest /src/lab/fixtures/synthetic-package-lock.json
 "$enter" --cgroup "$fixture_cgroup" -- "$build_fixture" --artifact "$artifact"
 "$enter" --cgroup "$fixture_cgroup" -- "$callback" --address 127.0.0.1:18082
 wait "$mock_pid"
@@ -78,6 +80,7 @@ if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 130 ]; then
 fi
 grep -q '"operation":"sensor_started"' "$output"
 grep -q '"path":"/src/build/out/rpf-build-fixture"' "$output"
+grep -q '"path":"/src/build/out/rpf-package-fixture"' "$output"
 grep -q '"operation":"file_open_output"' "$output"
 grep -q '"operation":"artifact_finalized"' "$output"
 grep -q '"destination":"127.0.0.1:18082"' "$output"
