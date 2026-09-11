@@ -71,9 +71,10 @@ type Event struct {
 }
 
 type GraphNode struct {
-	ProcessKey string `json:"process_key"`
-	ParentKey  string `json:"parent_key,omitempty"`
-	Executable string `json:"executable"`
+	ProcessKey        string `json:"process_key"`
+	ParentKey         string `json:"parent_key,omitempty"`
+	ParentObservation string `json:"parent_observation"`
+	Executable        string `json:"executable"`
 }
 
 type GraphEdge struct {

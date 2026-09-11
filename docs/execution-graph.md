@@ -18,6 +18,12 @@ No edge is named `caused`. A write-open does not prove bytes were written, and a
 not prove semantic influence. Nodes and edges are sorted before hashing, so replay yields the
 same graph digest for the same verified stream.
 
+Graph schema v0.2 labels every node's `parent_observation` as `observed`, `unobserved`, or `none`.
+An `observed_exec_parent` edge preserves the kernel-reported relationship even when its source
+node is outside the captured interval; `unobserved` prevents consumers from mistaking that edge
+for a fully reconstructed ancestor. It does not infer whether the missing parent was outside the
+cgroup, started before the sensor, or was lost.
+
 The M6 laboratory graph now contains both `file_open_output` and `artifact_finalized` edges for
 an exact absolute artifact path. This supports observed write-open attribution; it does not turn
 the two observations into proof that the process supplied every final byte.

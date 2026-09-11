@@ -95,6 +95,8 @@ grep -q '"kind":"observed_exec_parent"' "$graph"
 grep -q '"kind":"file_open_output"' "$graph"
 grep -q '"kind":"artifact_finalized"' "$graph"
 grep -q '"kind":"network_connect"' "$graph"
+grep -q '"schema_version":"0.2"' "$graph"
+grep -q '"parent_observation":"unobserved"' "$graph"
 "$validator" create-local-provenance --artifact "$artifact" --events "$output" \
   --repository https://example.test/agent-boundary --revision 1111111111111111111111111111111111111111 \
   --output "$provenance"

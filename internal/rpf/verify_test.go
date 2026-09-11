@@ -114,6 +114,33 @@ func TestBaselineAssemblesAndAllows(t *testing.T) {
 	if len(bundle.Graph.Nodes) != 2 || len(bundle.Graph.Edges) != 2 {
 		t.Fatalf("unexpected graph: %#v", bundle.Graph)
 	}
+	for _, node := range bundle.Graph.Nodes {
+		if node.ProcessKey == "sha256:parent" && node.ParentObservation != "none" {
+			t.Fatalf("root parent observation is ambiguous: %#v", node)
+		}
+		if node.ProcessKey == "sha256:compiler" && node.ParentObservation != "observed" {
+			t.Fatalf("observed ancestry was not labelled: %#v", node)
+		}
+	}
+}
+
+func TestGraphLabelsUnobservedParent(t *testing.T) {
+	inputs := fixtureInputs(t, func(events *[]Event) {
+		(*events)[2].Process.ParentKey = "sha256:not-in-stream"
+	})
+	bundle, err := Assemble(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, node := range bundle.Graph.Nodes {
+		if node.ProcessKey == "sha256:compiler" {
+			if node.ParentObservation != "unobserved" {
+				t.Fatalf("unobserved parent was not explicit: %#v", node)
+			}
+			return
+		}
+	}
+	t.Fatal("compiler node missing")
 }
 
 func TestBundleDiskRoundTrip(t *testing.T) {

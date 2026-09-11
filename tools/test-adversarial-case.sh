@@ -130,6 +130,8 @@ grep -q '"kernel_reserve":0' "$evidence"
 "$verifier" graph-events --events "$evidence" --output "$graph"
 grep -q '"kind":"file_open_sensitive"' "$graph"
 grep -q '"kind":"network_connect"' "$graph"
+grep -q '"schema_version":"0.2"' "$graph"
+grep -q '"parent_observation":"unobserved"' "$graph"
 "$verifier" create-local-provenance --artifact "$artifact" --events "$evidence" \
   --repository https://example.test/agent-boundary --revision 1111111111111111111111111111111111111111 \
   --output "$provenance"

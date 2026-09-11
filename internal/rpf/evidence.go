@@ -170,12 +170,21 @@ func BuildGraph(events []Event) (ExecutionGraph, error) {
 		}
 	}
 	nodes := make([]GraphNode, 0, len(nodeMap))
-	for _, node := range nodeMap {
+	for key, node := range nodeMap {
+		switch {
+		case node.ParentKey == "":
+			node.ParentObservation = "none"
+		case nodeMap[node.ParentKey].ProcessKey != "":
+			node.ParentObservation = "observed"
+		default:
+			node.ParentObservation = "unobserved"
+		}
+		nodeMap[key] = node
 		nodes = append(nodes, node)
 	}
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ProcessKey < nodes[j].ProcessKey })
 	sort.Slice(edges, func(i, j int) bool { return edges[i].Sequence < edges[j].Sequence })
-	return ExecutionGraph{SchemaVersion: "0.1", BuildID: events[0].Build.BuildID, Nodes: nodes, Edges: edges}, nil
+	return ExecutionGraph{SchemaVersion: "0.2", BuildID: events[0].Build.BuildID, Nodes: nodes, Edges: edges}, nil
 }
 
 func BuildGraphFromStream(raw []byte) (ExecutionGraph, error) {

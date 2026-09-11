@@ -4,6 +4,14 @@ This document records demonstrated results separately from hypotheses. “Observ
 evidence exists; “detected” means a rule emitted a finding; “rejected” means the final policy
 decision was `REJECT`.
 
+## Kernel/security reviewer
+
+Interim review found that kernel-reported parent keys could produce graph edges whose parent node
+was absent from the observation interval without an explicit uncertainty marker. Graph schema
+v0.2 fixes this by labelling each parent `observed`, `unobserved`, or `none`; unit and privileged
+graph assertions cover the distinction. This improves claim precision but does not recover missing
+ancestry or defend against a privileged hostile host.
+
 ## Controlled malware-behavior experiments
 
 MBE-001 emulates a synthetic credential-file read, child execution, artifact staging, an
