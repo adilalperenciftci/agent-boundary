@@ -1,119 +1,70 @@
 # Architecture
 
-## Thesis
+## Thesis and scope
 
-The system correlates runtime evidence with existing provenance standards. The core result is
-not a claim that events were collected; it is a verifier result over explicit digest and
-identity equalities.
+Agent Boundary is a local-first decision-point engine for agent/tool interactions. It consumes security-relevant events from an agent host or MCP adapter, normalizes them into a stable envelope, evaluates deterministic policy, and records a replayable evidence trail.
 
-```text
-source revision
-      |
-CI identity + build nonce
-      |
-isolated build cgroup <--- host-owned CO-RE sensor
-      |                           |
-artifact bytes              bounded events + loss counters
-      |                           |
-artifact SHA-256        canonical stream -> execution graph
-      |                           |
-SLSA provenance <------ evidence manifest ------> Runtime Trace v0.1
-              \             |                    /
-               \------ signed Sigstore bundle --/
-                              |
-                strict correlation + policy verifier
-                              |
-                    ALLOW / REVIEW / REJECT
-```
-
-The implemented local path includes cgroup-filtered exec, selected write-open, sensitive-open,
-and IPv4 connect-attempt collection; a canonical single-writer collector; exact-path artifact
-finalization; SLSA Provenance v1 correlation; and offline Cosign bundle verification. Hosted CI
-identity, keyless signing, and transparency verification remain target components.
+The core does not proxy MCP transport in its first release. Adapters are expected to call it before a privileged tool invocation and honor `deny` or `review` results. When events arrive after execution, the same rule is detection-only.
 
 ## Components
 
-### Kernel sensor (narrow vertical slice implemented)
+```text
+agent host / MCP adapter
+          |
+          v
+  bounded JSON input
+          |
+    schema validator
+          |
+      normalizer ----> canonical event digest
+          |
+     policy engine ----> decision + findings
+          |                       |
+          +-----------> redactor -+
+                                  |
+                           hash-chained JSONL
+                                  |
+                           verifier / replay
+```
 
-The BPF C CO-RE program attaches to `sched_process_exec`, `sys_enter_openat`,
-`sys_exit_openat`, and `cgroup/connect4`. It scopes tracepoint observations by one
-loader-supplied cgroup ID and attaches connect observation directly to that cgroup. Bounded exec,
-selected file, and numeric IPv4 destination records use a BPF ring buffer. Reservation and
-open-entry/exit correlation failures increment explicit counters that userspace emits during
-finalization. This slice does not claim resolved-path, DNS, IPv6, privilege-transition, or
-descendant-cgroup attribution.
+The implementation is one Python package with narrow modules. Python is sufficient because this layer performs bounded parsing and deterministic evaluation, not high-throughput packet processing. A Rust gateway would add build and unsafe-FFI review surface before transport interception is justified.
 
-### Go sensor loader and collector (M2/M3 implemented)
+## Event path
 
-`cmd/rpf-sensor` loads the CO-RE object using `cilium/ebpf`, rewrites the target cgroup constant,
-attaches the tracepoint, and defensively decodes fixed-size records. It constructs composite
-process/parent keys, writes canonical hash-chained lifecycle and exec events through one
-exclusive append writer, syncs each record, correlates successful write-intent `openat` events,
-and finalizes an exact-path artifact digest plus loss counts. Authenticating build registration,
-resolved-path coverage, and privilege separation remain.
+1. The caller submits a UTF-8 JSON object subject to byte, depth, collection-size, and string-size limits.
+2. Structural validation rejects unknown event versions, invalid identifiers, non-finite numbers, and ambiguous fields.
+3. Normalization emits canonical field ordering and URI forms without changing argument semantics.
+4. Rules evaluate only declared event requirements. Missing evidence cannot silently become evidence of safety.
+5. The engine combines findings by explicit precedence: `deny` > `review` > `allow`.
+6. Evidence is redacted before persistence. Raw credentials are never required for replay.
+7. Each ledger record commits to the previous record hash and canonical current record. Verification detects deletion, reordering, or modification within a ledger segment; it does not prevent whole-ledger deletion or rollback without an external checkpoint.
 
-### Evidence and graph core (implemented for fixtures)
+## Trust model
 
-`internal/rpf` strictly parses canonical JSONL, rejects duplicate/unknown fields, verifies
-event order and hash chaining, constructs typed observation edges, and commits graph and
-stream digests to an evidence manifest. Process identity combines boot ID, PID namespace,
-TGID, and start time; PID alone is never a node key.
+Caller-provided provenance labels are claims, not facts. A deployment adapter is responsible for authenticating the caller and assigning trusted labels. The engine records `producer` and `observed_at` separately from event time. Future signed adapters may raise provenance assurance; the event schema must not imply that self-asserted metadata is verified.
 
-### Attestation composer (implemented for fixtures)
+Tool manifests are canonicalized and hashed. An approved catalog digest can be supplied by policy. A mismatch supports a catalog-integrity finding but not attribution to a malicious actor.
 
-The composer emits an in-toto Statement v1 with Runtime Trace v0.1. Standard fields identify
-the monitor and run; one namespaced extension commits to build/run/source identity, evidence
-manifest, graph, SLSA provenance, policy, and completeness. Detailed events remain external
-content-addressed evidence.
+## Policy model
 
-### Signature verification (offline fixture implemented; workload identity planned)
+Policy is deterministic and data oriented. Rules declare stable IDs, applicable event kinds, required fields, severity, decision effect, and parameters. The initial built-in evaluators are intentionally small. YAML loading is deferred until schema and evaluator semantics are proven; executable Python from rule directories is prohibited.
 
-The disposable lab uses Cosign 3.1.2 to sign Runtime Trace and provenance bytes with an ephemeral
-synthetic key and verifies both bundles under the corresponding public key before semantic
-verification. Tampered bytes, malformed statements, and an unrelated key are rejected. This does
-not verify a hosted workload identity or transparency inclusion. A future keyless profile must
-verify Fulcio identity/issuer and current Sigstore transparency evidence without inventing
-cryptographic primitives or hard-coding a Rekor shard.
+Secret detection uses conservative format indicators. Evidence retains only the JSON path and detector identifier, never the matched value or a secret-derived fingerprint. Format-only matches result in review unless policy explicitly raises them to deny.
 
-### Correlation and policy verifier (fixture slice implemented)
-
-The verifier recomputes artifact, stream, graph, manifest, provenance, and policy commitments;
-checks cross-document build/run/source identities; evaluates deterministic behavior policy;
-and applies precedence `REJECT > REVIEW > ALLOW`. Incomplete evidence is a verification state
-that policy cannot upgrade to `ALLOW`.
-
-## Data ownership and ordering
-
-The sensor supplies kernel observations, not policy decisions. The collector owns event
-sequence and persistence. Graph construction is pure and replayable. The attestation composer
-does not mutate evidence. The signer authenticates immutable statement bytes. The verifier
-receives untrusted bytes and recomputes all links under local policy.
-
-Build registration supplies repository and revision to the sensor before collection. Those values
-are immutable event-scope fields and must equal provenance, but the local registrar is not an
-authenticated source-control authority. This separates demonstrated equality from future hosted
-identity assurance.
-
-## Technology choices
-
-Go plus `cilium/ebpf` was selected over Aya and a pure third-party adapter after comparison in
-the [gap analysis](research/runtime-attestation-gap.md). The choice favors mature Go in-toto,
-Sigstore, and eBPF ecosystems while keeping BPF code small. Protobuf is deferred until kernel
-record semantics have been exercised; versioned canonical JSON prevents premature schema
-stability claims in the first slice.
+Egress policy parses destinations structurally. It does not use substring allowlists. Schemes and normalized hosts are matched separately; userinfo, malformed hosts, unexpected ports, and IP literals are explicit policy dimensions.
 
 ## Failure behavior
 
-Malformed data, duplicate keys, unsupported versions, digest mismatch, identity conflict, and
-missing artifact attribution fail closed. Event loss produces `incomplete`; strict policy maps
-that to `REVIEW` or `REJECT`. Operational parser errors use a distinct exit status from policy
-decisions.
+Inline mode fails closed for malformed input, unavailable policy, and ledger write failure. Observe-only replay reports validation errors and continues only when explicitly requested. Limits are applied before expensive traversal. Decision output is written only after durable ledger append unless the caller selects a documented non-durable mode.
 
-## Privilege and host trust
+## Deployment modes
 
-The sensor needs BPF/perfmon-style privileges appropriate to the host configuration; the tested
-lab uses a privileged disposable container. Future BPF LSM programs may need additional host
-configuration. After loading,
-capabilities should be reduced; evidence output and policy should be read-only to the build.
-Seccomp, Landlock, map freezing, and split loader/collector processes will be evaluated against
-actual required syscalls. None of these controls defeats hostile root.
+- Library: lowest latency; host invokes the engine in process.
+- CLI/stdio: language-neutral local adapter and deterministic laboratory interface.
+- Replay: reads fixtures or ledgers with network disabled and compares findings.
+
+An HTTP daemon is not in the initial scope because it introduces authentication, request smuggling, TLS termination, and availability obligations unrelated to proving the decision model.
+
+## Telemetry interoperability
+
+The normalized schema preserves trace and span identifiers and maps compatible fields to OpenTelemetry GenAI names. Sensitive tool arguments/results are not exported by default. OTel is an export surface, not the authoritative forensic store, because collector transformations and sampling can remove evidence.

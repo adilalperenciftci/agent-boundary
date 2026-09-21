@@ -83,6 +83,22 @@ class VerticalSliceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValidationError, "hash mismatch"):
                 append(path, {"kind": "event", "value": 3})
 
+    def test_port_zero_is_not_treated_as_default_port(self) -> None:
+        data = json.loads(self.event("benign/approved-call.json"))
+        data["destination"] = "https://api.github.com:0/repos"
+        event = parse_event(json.dumps(data).encode())
+        self.assertEqual(event.destination.port, 0)
+        # Port 0 is not in allowed_ports (only 443 is allowed for api.github.com)
+        result = evaluate(event, POLICY)
+        self.assertEqual(result.decision, "review")
+        self.assertTrue(any(f.rule_id == "AB-EGRESS-001" for f in result.findings))
+
+    def test_timestamp_without_t_separator_rejected(self) -> None:
+        data = json.loads(self.event("benign/approved-call.json"))
+        data["occurred_at"] = "2026-03-31 12:00:00Z"
+        with self.assertRaisesRegex(ValidationError, "RFC 3339 compatible"):
+            parse_event(json.dumps(data).encode())
+
 
 if __name__ == "__main__":
     unittest.main()

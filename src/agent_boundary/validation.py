@@ -144,6 +144,8 @@ def parse_event(raw: bytes) -> ToolCallEvent:
     timestamp = data.get("occurred_at")
     if not isinstance(timestamp, str):
         raise ValidationError("occurred_at must be a string")
+    if "T" not in timestamp and "t" not in timestamp:
+        raise ValidationError("occurred_at must be RFC 3339 compatible")
     try:
         occurred_at = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     except ValueError as exc:

@@ -43,7 +43,11 @@ def _destination_allowed(event: ToolCallEvent, policy: Policy) -> bool:
     destination = event.destination
     if destination is None:
         return True
-    effective_port = destination.port or (443 if destination.scheme == "https" else 80)
+    effective_port = (
+        destination.port
+        if destination.port is not None
+        else (443 if destination.scheme == "https" else 80)
+    )
     return (
         destination.host in policy.allowed_hosts
         and destination.scheme in policy.allowed_schemes
