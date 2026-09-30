@@ -87,7 +87,10 @@ class VerticalSliceTests(unittest.TestCase):
         data = json.loads(self.event("benign/approved-call.json"))
         data["destination"] = "https://api.github.com:0/repos"
         event = parse_event(json.dumps(data).encode())
-        self.assertEqual(event.destination.port, 0)
+        destination = event.destination
+        if destination is None:
+            self.fail("parsed destination is missing")
+        self.assertEqual(destination.port, 0)
         # Port 0 is not in allowed_ports (only 443 is allowed for api.github.com)
         result = evaluate(event, POLICY)
         self.assertEqual(result.decision, "review")
