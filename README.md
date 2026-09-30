@@ -41,6 +41,18 @@ Exit codes are `0` allow, `2` review, `3` deny, and `4` validation or operationa
 
 An adapter supplies a bounded JSON event. Strict validation and URI normalization occur before deterministic rules. Evidence is redacted, canonicalized, and appended to a single-writer JSONL ledger. The standard-library runtime has no third-party dependencies.
 
+```mermaid
+flowchart LR
+  T[Tool request] --> A[Required external adapter]
+  A --> N[Validation and normalization]
+  N --> P[Policy decision]
+  P --> D[allow / review / deny]
+  P --> L[Redacted evidence ledger]
+  D --> A
+```
+
+The adapter must authenticate the producer and enforce the decision before tool execution for inline use. The engine cannot establish adapter provenance on its own.
+
 OpenTelemetry-compatible names are an export concern; raw arguments are not exported by default. The local ledger remains authoritative because collectors can sample or transform telemetry.
 
 ## Deliberate exclusions
